@@ -55,12 +55,9 @@ export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps)
           widthMm: 3000,
           lengthMm: 3000,
           heightMm: 2800,
-          walls: [],
-          doors: [],
-          windows: [],
-          structuralObstacles: [],
-          plumbingPoints: [],
-          electricalPoints: []
+          polygonMm: [],
+          fixtures: [],
+          obstacles: []
         },
         appliances: [],
         payments: []

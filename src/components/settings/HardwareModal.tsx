@@ -90,7 +90,7 @@ export const HardwareModal = ({ isOpen, onClose, hardware, onSave }: HardwareMod
                     <label className="block text-xs font-bold text-zinc-400 mb-1.5">التصنيف</label>
                     <select 
                       value={formData.category}
-                      onChange={e => setFormData({...formData, category: e.target.value as HardwareCategory})}
+                      onChange={e => setFormData({...formData, category: e.target.value as HardwareItem['category']})}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-emerald-500 transition-colors"
                     >
                       <option value="hinge">مفصلات (Hinges)</option>
