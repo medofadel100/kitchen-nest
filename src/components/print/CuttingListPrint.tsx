@@ -1,0 +1,212 @@
+import React from 'react';
+import { KitchenProject, Material, NestingResult, PlacedPiece } from '@/types';
+
+interface CuttingListPrintProps {
+  project: KitchenProject;
+  nestingDetails: { material: Material; result: NestingResult; piecesCount: number }[];
+}
+
+export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintProps) => {
+  return (
+    <div className="w-full bg-white text-black font-sans min-h-screen" style={{ direction: 'rtl' }}>
+      {nestingDetails.map((detail, mIdx) => (
+        <React.Fragment key={mIdx}>
+          {detail.result.sheets.map((sheet, sIdx) => {
+            const sheetW = sheet.sheetSize.widthMm;
+            const sheetH = sheet.sheetSize.heightMm;
+            
+            // Group identical pieces for the table
+            const groupedPieces = sheet.placedPieces.reduce((acc, piece) => {
+              // Group by size and label
+              const key = `${piece.widthMm}x${piece.heightMm}_${piece.label}`;
+              if (!acc[key]) {
+                acc[key] = { ...piece, count: 1 };
+              } else {
+                acc[key].count += 1;
+              }
+              return acc;
+            }, {} as Record<string, PlacedPiece & { count: number }>);
+            
+            const partsList = Object.values(groupedPieces);
+            const totalUsedAreaM2 = (sheetW * sheetH * (sheet.utilizationPercent / 100)) / 1000000;
+            const totalAreaM2 = (sheetW * sheetH) / 1000000;
+            const wasteAreaM2 = totalAreaM2 - totalUsedAreaM2;
+
+            return (
+              <div key={`${mIdx}-${sIdx}`} className="p-8 page-break-after-always" style={{ pageBreakAfter: 'always' }}>
+                
+                {/* Header */}
+                <div className="flex justify-between items-start border-b-2 border-zinc-300 pb-4 mb-6">
+                  <div>
+                    <h1 className="text-2xl font-black mb-1">لوح التقطيع (Cutting Sheet)</h1>
+                    <p className="text-zinc-600 font-bold text-lg">{detail.material.nameAr}</p>
+                    <p className="text-sm text-zinc-500">مشروع: {project.projectName}</p>
+                  </div>
+                  <div className="text-left text-sm bg-zinc-100 p-3 rounded border border-zinc-200">
+                    <p><strong>مقاس اللوح:</strong> {sheetW} × {sheetH} مم</p>
+                    <p><strong>عدد القطع:</strong> {sheet.placedPieces.length} قطعة</p>
+                    <p><strong>المساحة المستخدمة:</strong> {totalUsedAreaM2.toFixed(2)} م² ({sheet.utilizationPercent.toFixed(1)}%)</p>
+                    <p><strong>المساحة المهدرة:</strong> {wasteAreaM2.toFixed(2)} م²</p>
+                    <p><strong>ترتيب اللوح:</strong> {sIdx + 1} من {detail.result.sheets.length}</p>
+                  </div>
+                </div>
+
+                {/* Parts Table */}
+                <div className="mb-8">
+                  <table className="w-full text-sm border-collapse border border-zinc-300 text-center">
+                    <thead>
+                      <tr className="bg-zinc-200">
+                        <th className="border border-zinc-300 p-1.5">العدد</th>
+                        <th className="border border-zinc-300 p-1.5">القطعة (Label)</th>
+                        <th className="border border-zinc-300 p-1.5">العرض (مم)</th>
+                        <th className="border border-zinc-300 p-1.5">الطول (مم)</th>
+                        <th className="border border-zinc-300 p-1.5">شريط الحرف</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {partsList.map((part, pIdx) => (
+                        <tr key={pIdx}>
+                          <td className="border border-zinc-300 p-1.5 font-bold">{part.count}</td>
+                          <td className="border border-zinc-300 p-1.5 text-right px-3">{part.label}</td>
+                          <td className="border border-zinc-300 p-1.5 font-mono font-bold">{part.widthMm}</td>
+                          <td className="border border-zinc-300 p-1.5 font-mono font-bold">{part.heightMm}</td>
+                          <td className="border border-zinc-300 p-1.5 text-xs text-red-600">
+                            {part.edgesToBind && part.edgesToBind.length > 0 ? part.edgesToBind.join(', ') : 'بدون'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* SVG Visual Nesting */}
+                <div className="w-full relative mt-4">
+                  {/* We use viewBox so it scales perfectly, maintaining aspect ratio. 
+                      We add 100 to width/height for margins to draw dimension lines. */}
+                  <svg 
+                    viewBox={`-50 -50 ${sheetW + 100} ${sheetH + 100}`} 
+                    className="w-full max-h-[600px] bg-white drop-shadow-sm"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <defs>
+                      <pattern id={`pattern-wood-${mIdx}-${sIdx}`} patternUnits="userSpaceOnUse" width="400" height="400">
+                        <rect width="400" height="400" fill="#f8eedc" />
+                        <path d="M0 0l400 400M400 0L0 400" stroke="#f0e2ca" strokeWidth="1" fill="none" opacity="0.5"/>
+                      </pattern>
+                    </defs>
+
+                    {/* Board background */}
+                    <rect 
+                      x="0" 
+                      y="0" 
+                      width={sheetW} 
+                      height={sheetH} 
+                      fill={`url(#pattern-wood-${mIdx}-${sIdx})`}
+                      stroke="#8B5A2B" 
+                      strokeWidth="4" 
+                    />
+
+                    {/* Dimension Line - Top (Width) */}
+                    <line x1="0" y1="-20" x2={sheetW} y2="-20" stroke="black" strokeWidth="2" />
+                    <line x1="0" y1="-30" x2="0" y2="-10" stroke="black" strokeWidth="2" />
+                    <line x1={sheetW} y1="-30" x2={sheetW} y2="-10" stroke="black" strokeWidth="2" />
+                    <text x={sheetW / 2} y="-30" fill="black" fontSize="40" fontWeight="bold" textAnchor="middle">{sheetW} mm</text>
+
+                    {/* Dimension Line - Right (Height) */}
+                    <line x1={sheetW + 20} y1="0" x2={sheetW + 20} y2={sheetH} stroke="black" strokeWidth="2" />
+                    <line x1={sheetW + 10} y1="0" x2={sheetW + 30} y2="0" stroke="black" strokeWidth="2" />
+                    <line x1={sheetW + 10} y1={sheetH} x2={sheetW + 30} y2={sheetH} stroke="black" strokeWidth="2" />
+                    <text 
+                      x={sheetW + 40} 
+                      y={sheetH / 2} 
+                      fill="black" 
+                      fontSize="40" 
+                      fontWeight="bold" 
+                      textAnchor="middle" 
+                      transform={`rotate(90 ${sheetW + 40} ${sheetH / 2})`}
+                    >
+                      {sheetH} mm
+                    </text>
+
+                    {/* Placed Pieces */}
+                    {sheet.placedPieces.map((piece, pIdx) => {
+                      const w = piece.rotated ? piece.heightMm : piece.widthMm;
+                      const h = piece.rotated ? piece.widthMm : piece.heightMm;
+                      
+                      // Calculate center for text placement
+                      const cx = piece.xMm + (w / 2);
+                      const cy = piece.yMm + (h / 2);
+
+                      // Text should always flow along the longest dimension
+                      const textRotated = h > w;
+                      const maxW = textRotated ? h : w;
+                      const maxH = textRotated ? w : h;
+
+                      // Approximate text length based on label and dimensions strings
+                      const longestStringLength = Math.max(piece.label.length, 12);
+                      
+                      // Calculate maximum font size that fits both width and height
+                      // 0.55 is approx char width/height ratio. 2.5 is for 2 lines + padding
+                      const calculatedFontSize = Math.min(
+                        maxW / (0.55 * longestStringLength), 
+                        maxH / 2.5
+                      );
+
+                      // Constrain font size to reasonable limits
+                      const finalFontSize = Math.max(12, Math.min(calculatedFontSize, 100));
+                      const lineSpacing = finalFontSize * 1.2;
+                      const textTransform = textRotated ? `rotate(-90 ${cx} ${cy})` : '';
+                      
+                      return (
+                        <g key={pIdx}>
+                          <rect 
+                            x={piece.xMm} 
+                            y={piece.yMm} 
+                            width={w} 
+                            height={h} 
+                            fill="white" 
+                            stroke="#1f2937" 
+                            strokeWidth="2"
+                            opacity="0.9"
+                          />
+                          
+                          {/* Inner Label Group */}
+                          <g transform={textTransform}>
+                            <text 
+                              x={cx} 
+                              y={cy - (lineSpacing / 2.2)} 
+                              fill="#1f2937" 
+                              fontSize={finalFontSize} 
+                              fontWeight="900" 
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              className="font-sans"
+                            >
+                              {piece.label}
+                            </text>
+                            <text 
+                              x={cx} 
+                              y={cy + (lineSpacing / 2.2)} 
+                              fill="#4b5563" 
+                              fontSize={finalFontSize * 0.9} 
+                              fontWeight="900" 
+                              textAnchor="middle"
+                              dominantBaseline="middle"
+                              className="font-mono tracking-wider"
+                            >
+                              {piece.widthMm} x {piece.heightMm}
+                            </text>
+                          </g>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+              </div>
+            );
+          })}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+};
