@@ -43,6 +43,16 @@ const HPL_COLORS = [
   { id: 'hpl_sand', nameAr: 'رملي', colorHex: '#D4C4A0' },
 ];
 
+// ألوان الأخشاب العادية والمدهونة (لتجربتها في النظام)
+const WOOD_COLORS = [
+  { id: 'wood_natural', nameAr: 'خشب طبيعي', colorHex: '#D4B896' },
+  { id: 'wood_oak', nameAr: 'بلوط', colorHex: '#C8A96E' },
+  { id: 'wood_walnut', nameAr: 'جوز', colorHex: '#5C3317' },
+  { id: 'wood_wenge', nameAr: 'وينج', colorHex: '#3B2A1A' },
+  { id: 'wood_white', nameAr: 'أبيض مدهون', colorHex: '#F5F5F5' },
+  { id: 'wood_black', nameAr: 'أسود مدهون', colorHex: '#222222' },
+];
+
 export const DEFAULT_MATERIALS: Material[] = [
   // ---------------- الألواح الخشبية للبدن (Carcass) ----------------
   {
@@ -58,7 +68,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 8,
     wastePercentDefault: 10,
     colorHex: "#D4B896",
-    // MDF مش له availableColors — لونه لون الخشب الخام، بيُصبغ أو بيُكسى بعدين
+    availableColors: WOOD_COLORS,
     updatedAt: new Date().toISOString(),
   },
   {
@@ -74,7 +84,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 8,
     wastePercentDefault: 10,
     colorHex: "#8FBF9F",
-    // MDF مش له ألوان
+    availableColors: WOOD_COLORS,
     updatedAt: new Date().toISOString(),
   },
   {
@@ -107,7 +117,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 10,
     wastePercentDefault: 10,
     colorHex: "#C19A6B",
-    // HDF مش له ألوان
+    availableColors: WOOD_COLORS,
     updatedAt: new Date().toISOString(),
   },
   {
@@ -124,7 +134,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 12,
     wastePercentDefault: 15,
     colorHex: "#E5D3B3",
-    // Plywood مش له ألوان
+    availableColors: WOOD_COLORS,
     updatedAt: new Date().toISOString(),
   },
 
