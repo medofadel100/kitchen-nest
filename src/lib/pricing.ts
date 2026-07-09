@@ -41,13 +41,16 @@ export function calculateProjectCost(
   let totalMaterialCost = 0;
   let totalEdgeBandingCost = 0;
 
-  for (const [materialId, pieces] of Object.entries(piecesByMaterial)) {
+  for (const [key, pieces] of Object.entries(piecesByMaterial)) {
+    // المفتاح = materialId__colorId — نستخرج materialId الحقيقي
+    const materialId = key.split('__')[0];
     const material = materialsById[materialId];
     if (!material) continue;
 
     const nestingResult = nestPiecesForMaterial(pieces, material);
     const sheetsNeeded = nestingResult.sheets.length;
-    sheetsRequiredByMaterial[materialId] = sheetsNeeded;
+    // نجمع الألواح حسب المادة (قد يكون فيه ألوان متعددة لنفس المادة)
+    sheetsRequiredByMaterial[materialId] = (sheetsRequiredByMaterial[materialId] || 0) + sheetsNeeded;
 
     // تكلفة الخامة = عدد الألواح الفعلي × سعر اللوح (مش المساحة النظرية!)
     totalMaterialCost += sheetsNeeded * material.pricePerSheet;

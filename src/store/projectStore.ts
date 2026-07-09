@@ -176,6 +176,12 @@ export const useProjectStore = create<ProjectState>()(
       depthMm = settings.defaultBaseDepthMm;
     }
 
+    // اختيار اللون حسب نوع الوحدة من الإعدادات الافتراضية
+    let defaultColorHex = settings.defaultBaseColor || '#D4B896';
+    if (type === 'wall' || type === 'corner_wall') defaultColorHex = settings.defaultWallColor || settings.defaultBaseColor || '#D4B896';
+    else if (type === 'tall' || type === 'corner_tall') defaultColorHex = settings.defaultTallColor || settings.defaultBaseColor || '#D4B896';
+    else if (type === 'loft') defaultColorHex = settings.defaultLoftColor || settings.defaultWallColor || '#D4B896';
+
     const newUnit: KitchenUnit = {
       id: `unit_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type,
@@ -190,7 +196,9 @@ export const useProjectStore = create<ProjectState>()(
         } : {})
       },
       materialId: settings.defaultMaterialId,
+      colorHex: defaultColorHex,
       doorMaterialId: settings.defaultDoorMaterialId,
+      doorColorHex: settings.defaultWallColorHex || defaultColorHex,
       doorCount: type === 'base' || type === 'wall' || type === 'tall' || type === 'loft' ? 2 : 0,
       drawerCount: type === 'drawer_unit' ? 3 : 0,
       shelfCount: type === 'base' || type === 'wall' ? 1 : (type === 'tall' ? 4 : 0),
@@ -204,7 +212,7 @@ export const useProjectStore = create<ProjectState>()(
           doorStyle: 'bifold_lazy_susan',
           internalSolution: 'lazy_susan_2tier',
           lazySusanDiameterMm: 750,
-          hardwareCost: 1200, // Default cost, can be updated by user
+          hardwareCost: 1200,
         }
       } : {}),
     };

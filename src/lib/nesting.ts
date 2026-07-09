@@ -161,10 +161,13 @@ function calculateNestingWithStrategy(pieces: CutPiece[], material: Material, st
 
     const sheetAreaM2 = (material.standardSheet.widthMm * material.standardSheet.heightMm) / 1_000_000;
     const usedAreaM2 = placed.reduce((sum, p) => sum + (p.widthMm * p.heightMm) / 1_000_000, 0);
+    const firstPiece = placed[0];
 
     sheets.push({
       sheetIndex,
       materialId: material.id,
+      colorId: firstPiece?.colorId || 'default',
+      colorHex: firstPiece?.colorHex || material.colorHex || '#D4B896',
       sheetSize: material.standardSheet,
       placedPieces: placed,
       usedAreaM2,

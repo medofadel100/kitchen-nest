@@ -7,6 +7,12 @@
 
 export type MaterialCategory = "mdf" | "hpl" | "acrylic" | "melamine" | "solid_wood" | "plywood";
 
+export interface MaterialColor {
+  id: string;
+  nameAr: string;
+  colorHex: string;
+}
+
 export type BoardType = "mdf" | "hdf" | "chipboard" | "plywood" | "solid_wood" | "melamine_faced" | "acrylic_faced";
 
 export interface StandardSheetSize {
@@ -31,7 +37,8 @@ export interface Material {
   isPricePlaceholder: boolean; // true = سعر افتراضي لسه محتاج تأكيد
   requiresColorMatching?: boolean; // للمطابقة البصرية للون/الثمرة للوحدات المتجاورة
   wastePercentDefault: number; // نسبة هالك افتراضية (مثلاً 10%)
-  colorHex?: string;           // للعرض في الرسمة
+  colorHex?: string;           // اللون الافتراضي للخامة للعرض في الرسمة
+  availableColors?: MaterialColor[]; // ألوان متاحة (للميلامين/الأكريليك/HPL) — فاضية = لون ثابت (MDF)
   updatedAt: string;
 }
 
@@ -91,7 +98,11 @@ export interface KitchenUnit {
   position: { xMm: number; yMm: number; zMm?: number; rotationDeg: 0 | 90 | 180 | 270 };
   dimensions: UnitDimensions;
   materialId: string;          // الخامة المستخدمة للجسم
+  colorHex?: string;           // لون جسم الوحدة (مأخوذ من availableColors للخامة)
+  colorId?: string;            // ID اللون المختار من availableColors
   doorMaterialId?: string;     // خامة الأبواب لو مختلفة
+  doorColorHex?: string;       // لون الأبواب
+  doorColorId?: string;        // ID لون الأبواب
   doorCount: number;
   drawerCount: number;
   shelfCount?: number;         // عدد الأرفف الداخلية
@@ -306,6 +317,8 @@ export interface CutPiece {
   widthMm: number;
   heightMm: number;
   materialId: string;
+  colorId: string;      // اللون — الـ nesting يفصل قطع الألوان المختلفة على ألواح منفصلة
+  colorHex: string;     // اللون الفعلي للعرض البصري
   label: string;
   canRotate: boolean;
   visualGroupId?: string; // لجمع القطع المتجاورة بنفس اللون/الثمرة
@@ -321,6 +334,8 @@ export interface PlacedPiece extends CutPiece {
 export interface NestingSheetResult {
   sheetIndex: number;
   materialId: string;
+  colorId: string;      // اللون المخصص لهذا اللوح
+  colorHex: string;     // اللون للعرض البصري
   sheetSize: StandardSheetSize;
   placedPieces: PlacedPiece[];
   usedAreaM2: number;

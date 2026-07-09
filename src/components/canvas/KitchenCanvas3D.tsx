@@ -151,10 +151,10 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
           const yPos = (elevationMm * SCALE_3D) + (h / 2);
           const zPos = (unit.position.yMm * SCALE_3D) + (d / 2);
 
-          let color = '#3b82f6'; 
-          if (unit.type === 'wall') color = '#10b981'; 
-          if (unit.type === 'tall') color = '#8b5cf6'; 
-          if (unit.type === 'loft') color = '#6366f1'; 
+          // اللون من بيانات الوحدة مباشرة — اللون المختار من الـ palette
+          const bodyColor = unit.colorHex || '#D4B896';
+          const doorColor = unit.doorColorHex || bodyColor;
+          const color = bodyColor;
           
           const rotationRad = (unit.position.rotationDeg || 0) * (Math.PI / -180);
           const isSelected = useProjectStore.getState().selectedElements.some(e => e.id === unit.id);
@@ -318,7 +318,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                     details.push(
                       <group key={`drawer-${i}`} position={[0, yPos, frontZ]}>
                         <Box args={[w - 0.004, actualDrawerH - 0.004, doorT]} castShadow>
-                          <meshStandardMaterial color={isSelected ? '#fcd34d' : '#e2e8f0'} roughness={0.3} />
+                          <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
                         </Box>
                         <Box args={[w * 0.4, 0.02, 0.015]} position={[0, 0, doorT/2 + 0.007]} castShadow>
                           <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
@@ -337,7 +337,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                     details.push(
                       <group key={`door-${i}`} position={[startX + (i * doorW), doorsYStart + doorsHeight/2, frontZ]}>
                         <Box args={[doorW - 0.004, doorsHeight - 0.004, doorT]} castShadow>
-                          <meshStandardMaterial color={isSelected ? '#fcd34d' : '#f1f5f9'} roughness={0.3} />
+                          <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
                         </Box>
                         <Box args={[0.015, doorsHeight * 0.3, 0.02]} position={[(i%2===0 ? doorW/2 - 0.05 : -doorW/2 + 0.05), 0, doorT/2 + 0.01]} castShadow>
                           <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
@@ -357,7 +357,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                   details.push(
                     <group key="corner-door-right" position={[leftD/2, doorsYStart + doorsHeight/2, -d/2 + rightD + doorT/2]}>
                       <Box args={[rightDoorW - 0.004, doorsHeight - 0.004, doorT]} castShadow>
-                        <meshStandardMaterial color={isSelected ? '#fcd34d' : '#f1f5f9'} roughness={0.3} />
+                        <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
                       </Box>
                       {/* Handle */}
                       <Box args={[0.015, doorsHeight * 0.3, 0.02]} position={[-rightDoorW/2 + 0.05, 0, doorT/2 + 0.01]} castShadow>
@@ -371,7 +371,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                   details.push(
                     <group key="corner-door-left" position={[-w/2 + leftD + doorT/2, doorsYStart + doorsHeight/2, rightD/2]}>
                       <Box args={[doorT, doorsHeight - 0.004, leftDoorW - 0.004]} castShadow>
-                        <meshStandardMaterial color={isSelected ? '#fcd34d' : '#f1f5f9'} roughness={0.3} />
+                        <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
                       </Box>
                       {/* Handle */}
                       <Box args={[0.02, doorsHeight * 0.3, 0.015]} position={[doorT/2 + 0.01, 0, -leftDoorW/2 + 0.05]} castShadow>

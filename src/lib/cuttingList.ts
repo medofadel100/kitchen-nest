@@ -7,6 +7,8 @@ const PANEL_THICKNESS_MM = 18; // سمك اللوح الافتراضي المس�
 
 function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
   const { widthMm, depthMm, heightMm } = unit.dimensions;
+  const colorId = unit.colorId || 'default';
+  const colorHex = unit.colorHex || '#D4B896';
   const pieces: CutPiece[] = [];
 
   // جانبين (يمين ويسار) - بعمق الوحدة وارتفاعها
@@ -15,6 +17,8 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
     widthMm: depthMm,
     heightMm: heightMm,
     materialId: unit.materialId,
+    colorId,
+    colorHex,
     label: `${label} - جانب شمال`,
     canRotate: true, // will be overridden in nesting.ts if material has grain
     edgesToBind: ["left", "bottom"], // الأمامي والسفلي
@@ -24,6 +28,8 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
     widthMm: depthMm,
     heightMm: heightMm,
     materialId: unit.materialId,
+    colorId,
+    colorHex,
     label: `${label} - جانب يمين`,
     canRotate: true,
     edgesToBind: ["left", "bottom"],
@@ -36,6 +42,8 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
     widthMm: innerWidth,
     heightMm: depthMm,
     materialId: unit.materialId,
+    colorId,
+    colorHex,
     label: `${label} - قاعدة`,
     canRotate: true,
     edgesToBind: ["bottom"], // الأمامي فقط
@@ -45,6 +53,8 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
     widthMm: innerWidth,
     heightMm: depthMm,
     materialId: unit.materialId,
+    colorId,
+    colorHex,
     label: `${label} - سقف`,
     canRotate: true,
     edgesToBind: ["bottom"],
@@ -56,6 +66,8 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
     widthMm: innerWidth,
     heightMm: heightMm,
     materialId: unit.materialId,
+    colorId,
+    colorHex,
     label: `${label} - ظهر`,
     canRotate: true,
     edgesToBind: [],
@@ -70,6 +82,8 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
         widthMm: innerWidth,
         heightMm: depthMm - 20, // خصم بسيط لسهولة التركيب
         materialId: unit.materialId,
+        colorId,
+        colorHex,
         label: `${label} - رف ${i + 1}`,
         canRotate: true,
         edgesToBind: ["bottom"], // الأمامي فقط
@@ -82,6 +96,8 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
 
 function cornerCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
   const { widthMm, depthMm, heightMm, leftLegCarcassDepthMm, rightLegCarcassDepthMm } = unit.dimensions;
+  const colorId = unit.colorId || 'default';
+  const colorHex = unit.colorHex || '#D4B896';
   const leftD = leftLegCarcassDepthMm || 600;
   const rightD = rightLegCarcassDepthMm || 600;
   const pieces: CutPiece[] = [];
@@ -89,12 +105,12 @@ function cornerCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
   // الجوانب الخلفية (Back sides) اللي بتركب على الحيطة
   pieces.push({
     id: `${unit.id}_back_left`, widthMm: leftD, heightMm: heightMm,
-    materialId: unit.materialId, label: `${label} - جانب خلفي يسار`, canRotate: true,
+    materialId: unit.materialId, colorId, colorHex, label: `${label} - جانب خلفي يسار`, canRotate: true,
     edgesToBind: ["left", "bottom"],
   });
   pieces.push({
     id: `${unit.id}_back_right`, widthMm: rightD, heightMm: heightMm,
-    materialId: unit.materialId, label: `${label} - جانب خلفي يمين`, canRotate: true,
+    materialId: unit.materialId, colorId, colorHex, label: `${label} - جانب خلفي يمين`, canRotate: true,
     edgesToBind: ["left", "bottom"],
   });
 
@@ -106,20 +122,20 @@ function cornerCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
   const baseDepth2 = depthMm - rightD; // الجزء الباقي من العمق
 
   // Base
-  pieces.push({ id: `${unit.id}_base_1`, widthMm: baseWidth1, heightMm: baseDepth1, materialId: unit.materialId, label: `${label} - قاعدة يمين`, canRotate: true, edgesToBind: ["bottom"] });
-  pieces.push({ id: `${unit.id}_base_2`, widthMm: baseWidth2, heightMm: baseDepth2, materialId: unit.materialId, label: `${label} - قاعدة يسار`, canRotate: true, edgesToBind: ["bottom"] });
+  pieces.push({ id: `${unit.id}_base_1`, widthMm: baseWidth1, heightMm: baseDepth1, materialId: unit.materialId, colorId, colorHex, label: `${label} - قاعدة يمين`, canRotate: true, edgesToBind: ["bottom"] });
+  pieces.push({ id: `${unit.id}_base_2`, widthMm: baseWidth2, heightMm: baseDepth2, materialId: unit.materialId, colorId, colorHex, label: `${label} - قاعدة يسار`, canRotate: true, edgesToBind: ["bottom"] });
   
   // Top
-  pieces.push({ id: `${unit.id}_top_1`, widthMm: baseWidth1, heightMm: baseDepth1, materialId: unit.materialId, label: `${label} - سقف يمين`, canRotate: true, edgesToBind: ["bottom"] });
-  pieces.push({ id: `${unit.id}_top_2`, widthMm: baseWidth2, heightMm: baseDepth2, materialId: unit.materialId, label: `${label} - سقف يسار`, canRotate: true, edgesToBind: ["bottom"] });
+  pieces.push({ id: `${unit.id}_top_1`, widthMm: baseWidth1, heightMm: baseDepth1, materialId: unit.materialId, colorId, colorHex, label: `${label} - سقف يمين`, canRotate: true, edgesToBind: ["bottom"] });
+  pieces.push({ id: `${unit.id}_top_2`, widthMm: baseWidth2, heightMm: baseDepth2, materialId: unit.materialId, colorId, colorHex, label: `${label} - سقف يسار`, canRotate: true, edgesToBind: ["bottom"] });
 
   // الأرفف الخشبية فقط إذا لم يكن هناك حل داخلي جاهز
   const internalSolution = unit.cornerConfig?.internalSolution || "fixed_shelf";
   if (internalSolution === "fixed_shelf") {
     const shelfCount = unit.shelfCount || 0;
     for (let i = 0; i < shelfCount; i++) {
-      pieces.push({ id: `${unit.id}_shelf_1_${i}`, widthMm: baseWidth1 - 2, heightMm: baseDepth1 - 2, materialId: unit.materialId, label: `${label} - رف يمين ${i + 1}`, canRotate: true, edgesToBind: ["bottom"] });
-      pieces.push({ id: `${unit.id}_shelf_2_${i}`, widthMm: baseWidth2 - 2, heightMm: baseDepth2 - 2, materialId: unit.materialId, label: `${label} - رف يسار ${i + 1}`, canRotate: true, edgesToBind: ["bottom"] });
+      pieces.push({ id: `${unit.id}_shelf_1_${i}`, widthMm: baseWidth1 - 2, heightMm: baseDepth1 - 2, materialId: unit.materialId, colorId, colorHex, label: `${label} - رف يمين ${i + 1}`, canRotate: true, edgesToBind: ["bottom"] });
+      pieces.push({ id: `${unit.id}_shelf_2_${i}`, widthMm: baseWidth2 - 2, heightMm: baseDepth2 - 2, materialId: unit.materialId, colorId, colorHex, label: `${label} - رف يسار ${i + 1}`, canRotate: true, edgesToBind: ["bottom"] });
     }
   }
 
@@ -129,6 +145,8 @@ function cornerCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
 function doorPieces(unit: KitchenUnit, label: string, visualGroupId?: string): CutPiece[] {
   if (unit.doorCount === 0) return [];
   const doorMaterial = unit.doorMaterialId ?? unit.materialId;
+  const colorId = unit.doorColorId || unit.colorId || 'default';
+  const colorHex = unit.doorColorHex || unit.colorHex || '#D4B896';
   const doorWidth = unit.dimensions.widthMm / unit.doorCount - 4; // خصم فرزات بسيطة
   const pieces: CutPiece[] = [];
   for (let i = 0; i < unit.doorCount; i++) {
@@ -137,6 +155,8 @@ function doorPieces(unit: KitchenUnit, label: string, visualGroupId?: string): C
       widthMm: doorWidth,
       heightMm: unit.dimensions.heightMm - 4,
       materialId: doorMaterial,
+      colorId,
+      colorHex,
       label: `${label} - باب ${i + 1}`,
       canRotate: true,
       visualGroupId,
@@ -149,6 +169,8 @@ function doorPieces(unit: KitchenUnit, label: string, visualGroupId?: string): C
 function drawerFrontPieces(unit: KitchenUnit, label: string, visualGroupId?: string): CutPiece[] {
   if (unit.drawerCount === 0) return [];
   const doorMaterial = unit.doorMaterialId ?? unit.materialId;
+  const colorId = unit.doorColorId || unit.colorId || 'default';
+  const colorHex = unit.doorColorHex || unit.colorHex || '#D4B896';
   const frontHeight = Math.round(unit.dimensions.heightMm / unit.drawerCount - 4);
   const pieces: CutPiece[] = [];
   for (let i = 0; i < unit.drawerCount; i++) {
@@ -157,6 +179,8 @@ function drawerFrontPieces(unit: KitchenUnit, label: string, visualGroupId?: str
       widthMm: unit.dimensions.widthMm - 4,
       heightMm: frontHeight,
       materialId: doorMaterial,
+      colorId,
+      colorHex,
       label: `${label} - واجهة درج ${i + 1}`,
       canRotate: true,
       visualGroupId,
@@ -168,6 +192,8 @@ function drawerFrontPieces(unit: KitchenUnit, label: string, visualGroupId?: str
 
 function cornerDoorPieces(unit: KitchenUnit, label: string, visualGroupId?: string): CutPiece[] {
   const doorMaterial = unit.doorMaterialId ?? unit.materialId;
+  const colorId = unit.doorColorId || unit.colorId || 'default';
+  const colorHex = unit.doorColorHex || unit.colorHex || '#D4B896';
   const pieces: CutPiece[] = [];
   
   const doorStyle = unit.cornerConfig?.doorStyle || "bifold_lazy_susan";
@@ -183,15 +209,15 @@ function cornerDoorPieces(unit: KitchenUnit, label: string, visualGroupId?: stri
     // ضلفتين متصلتين
     const door1Width = widthMm - leftD - 2; // خصم فرزات
     const door2Width = depthMm - rightD - 2;
-    pieces.push({ id: `${unit.id}_corner_door_1`, widthMm: door1Width, heightMm: doorHeight, materialId: doorMaterial, label: `${label} - باب يمين (مطوي)`, canRotate: true, visualGroupId, edgesToBind: ["top", "bottom", "left", "right"] });
-    pieces.push({ id: `${unit.id}_corner_door_2`, widthMm: door2Width, heightMm: doorHeight, materialId: doorMaterial, label: `${label} - باب يسار (مطوي)`, canRotate: true, visualGroupId, edgesToBind: ["top", "bottom", "left", "right"] });
+    pieces.push({ id: `${unit.id}_corner_door_1`, widthMm: door1Width, heightMm: doorHeight, materialId: doorMaterial, colorId, colorHex, label: `${label} - باب يمين (مطوي)`, canRotate: true, visualGroupId, edgesToBind: ["top", "bottom", "left", "right"] });
+    pieces.push({ id: `${unit.id}_corner_door_2`, widthMm: door2Width, heightMm: doorHeight, materialId: doorMaterial, colorId, colorHex, label: `${label} - باب يسار (مطوي)`, canRotate: true, visualGroupId, edgesToBind: ["top", "bottom", "left", "right"] });
   } else if (doorStyle === "diagonal_single") {
     // ضلفة واحدة مشطوفة
     const door1Width = widthMm - leftD;
     const door2Width = depthMm - rightD;
     // طول الوتر
     const diagonalWidth = Math.round(Math.hypot(door1Width, door2Width)) - 4;
-    pieces.push({ id: `${unit.id}_corner_door_diag`, widthMm: diagonalWidth, heightMm: doorHeight, materialId: doorMaterial, label: `${label} - باب قطري`, canRotate: true, visualGroupId, edgesToBind: ["top", "bottom", "left", "right"] });
+    pieces.push({ id: `${unit.id}_corner_door_diag`, widthMm: diagonalWidth, heightMm: doorHeight, materialId: doorMaterial, colorId, colorHex, label: `${label} - باب قطري`, canRotate: true, visualGroupId, edgesToBind: ["top", "bottom", "left", "right"] });
   }
 
   return pieces;
@@ -220,16 +246,18 @@ export function unitToCutPieces(unit: KitchenUnit): CutPiece[] {
 }
 
 /**
- * يحول كل وحدات المشروع لقايمة قطع كاملة، مقسّمة حسب الخامة
- * (كل خامة لازم تتحسب على حدة لأن كل واحدة ليها لوح مختلف)
+ * يحول كل وحدات المشروع لقايمة قطع كاملة، مقسّمة حسب الخامة واللون معاً
+ * (كل خامة + لون لازم يكون على ألواح منفصلة — الأخضر مع الأخضر، الأبيض مع الأبيض)
  */
 export function projectToCutPiecesByMaterial(units: KitchenUnit[]): Record<string, CutPiece[]> {
   const grouped: Record<string, CutPiece[]> = {};
   for (const unit of units) {
     const pieces = unitToCutPieces(unit);
     for (const piece of pieces) {
-      if (!grouped[piece.materialId]) grouped[piece.materialId] = [];
-      grouped[piece.materialId].push(piece);
+      // المفتاح = materialId + colorId عشان الألوان المختلفة تكون على ألواح منفصلة
+      const key = `${piece.materialId}__${piece.colorId}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(piece);
     }
   }
   return grouped;

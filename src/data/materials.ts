@@ -1,5 +1,48 @@
 import { Material } from "../types";
 
+// ألوان الميلامين الشائعة في السوق المصري
+const MELAMINE_COLORS = [
+  { id: 'mel_white', nameAr: 'أبيض ناصع', colorHex: '#FFFFFF' },
+  { id: 'mel_off_white', nameAr: 'أوف وايت / كريم', colorHex: '#F5F0E8' },
+  { id: 'mel_beige', nameAr: 'بيج دافئ', colorHex: '#D9C5A0' },
+  { id: 'mel_light_grey', nameAr: 'رمادي فاتح', colorHex: '#D0CFCB' },
+  { id: 'mel_dark_grey', nameAr: 'رمادي داكن', colorHex: '#6B6B6B' },
+  { id: 'mel_anthracite', nameAr: 'أنثراسايت', colorHex: '#383838' },
+  { id: 'mel_black', nameAr: 'أسود مط', colorHex: '#1A1A1A' },
+  { id: 'mel_oak_light', nameAr: 'خشب بلوط فاتح', colorHex: '#C8A96E' },
+  { id: 'mel_oak_dark', nameAr: 'خشب بلوط داكن', colorHex: '#8B6914' },
+  { id: 'mel_walnut', nameAr: 'خشب جوز', colorHex: '#5C3317' },
+  { id: 'mel_wenge', nameAr: 'خشب وينج', colorHex: '#3B2A1A' },
+  { id: 'mel_teak', nameAr: 'خشب ساج', colorHex: '#9C6B3C' },
+];
+
+// ألوان الأكريليك والبولي لاك
+const ACRYLIC_COLORS = [
+  { id: 'acr_white', nameAr: 'أبيض لامع', colorHex: '#FFFFFF' },
+  { id: 'acr_off_white', nameAr: 'أوف وايت لامع', colorHex: '#F0EDE5' },
+  { id: 'acr_cream', nameAr: 'كريم لامع', colorHex: '#E8D9B8' },
+  { id: 'acr_light_grey', nameAr: 'رمادي فاتح لامع', colorHex: '#C8C8C8' },
+  { id: 'acr_dark_grey', nameAr: 'رمادي غامق لامع', colorHex: '#555555' },
+  { id: 'acr_black', nameAr: 'أسود لامع', colorHex: '#111111' },
+  { id: 'acr_champagne', nameAr: 'شامبين / ذهبي باهت', colorHex: '#D4BC8A' },
+  { id: 'acr_midnight_blue', nameAr: 'أزرق ليلي', colorHex: '#1B2A4A' },
+  { id: 'acr_forest_green', nameAr: 'أخضر زيتي', colorHex: '#2D4A2D' },
+  { id: 'acr_burgundy', nameAr: 'عنابي / بوردو', colorHex: '#5C1A1A' },
+  { id: 'acr_dusty_rose', nameAr: 'وردي باودر', colorHex: '#C9A0A0' },
+  { id: 'acr_sage_green', nameAr: 'أخضر مريمية', colorHex: '#8FA888' },
+];
+
+// ألوان HPL
+const HPL_COLORS = [
+  { id: 'hpl_white', nameAr: 'أبيض ناعم', colorHex: '#F8F8F8' },
+  { id: 'hpl_light_grey', nameAr: 'رمادي فاتح', colorHex: '#CCCCCC' },
+  { id: 'hpl_concrete', nameAr: 'رمادي خرسانة', colorHex: '#8C8C88' },
+  { id: 'hpl_oak', nameAr: 'بلوط طبيعي', colorHex: '#BA8C4A' },
+  { id: 'hpl_walnut', nameAr: 'جوز طبيعي', colorHex: '#6B3F1A' },
+  { id: 'hpl_black', nameAr: 'أسود مط', colorHex: '#1A1A1A' },
+  { id: 'hpl_sand', nameAr: 'رملي', colorHex: '#D4C4A0' },
+];
+
 export const DEFAULT_MATERIALS: Material[] = [
   // ---------------- الألواح الخشبية للبدن (Carcass) ----------------
   {
@@ -15,6 +58,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 8,
     wastePercentDefault: 10,
     colorHex: "#D4B896",
+    // MDF مش له availableColors — لونه لون الخشب الخام، بيُصبغ أو بيُكسى بعدين
     updatedAt: new Date().toISOString(),
   },
   {
@@ -30,6 +74,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 8,
     wastePercentDefault: 10,
     colorHex: "#8FBF9F",
+    // MDF مش له ألوان
     updatedAt: new Date().toISOString(),
   },
   {
@@ -40,12 +85,13 @@ export const DEFAULT_MATERIALS: Material[] = [
     supplierName: "Modecor Egypt",
     standardSheet: { widthMm: 1830, heightMm: 3660, thicknessMm: 18 },
     pricePerSheet: 1200,
-    hasGrainDirection: true, // الميلامين غالباً به عرق خشب
+    hasGrainDirection: true,
     requiresColorMatching: true,
     isPricePlaceholder: true,
     edgeBandingPricePerMeter: 7,
     wastePercentDefault: 10,
-    colorHex: "#D9D9D9",
+    colorHex: "#F5F0E8",
+    availableColors: MELAMINE_COLORS,  // ✅ ميلامين له ألوان
     updatedAt: new Date().toISOString(),
   },
   {
@@ -61,6 +107,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 10,
     wastePercentDefault: 10,
     colorHex: "#C19A6B",
+    // HDF مش له ألوان
     updatedAt: new Date().toISOString(),
   },
   {
@@ -71,12 +118,13 @@ export const DEFAULT_MATERIALS: Material[] = [
     supplierName: "Wood Panels (وود بانلز)",
     standardSheet: { widthMm: 1220, heightMm: 2440, thicknessMm: 18 },
     pricePerSheet: 2800,
-    hasGrainDirection: true, // الكونتر الأرو له اتجاه عرق
+    hasGrainDirection: true,
     requiresColorMatching: true,
     isPricePlaceholder: true,
     edgeBandingPricePerMeter: 12,
     wastePercentDefault: 15,
     colorHex: "#E5D3B3",
+    // Plywood مش له ألوان
     updatedAt: new Date().toISOString(),
   },
 
@@ -93,7 +141,8 @@ export const DEFAULT_MATERIALS: Material[] = [
     isPricePlaceholder: true,
     edgeBandingPricePerMeter: 15,
     wastePercentDefault: 12,
-    colorHex: "#E8E8E8",
+    colorHex: "#FFFFFF",
+    availableColors: ACRYLIC_COLORS,  // ✅ أكريليك له ألوان
     updatedAt: new Date().toISOString(),
   },
   {
@@ -109,6 +158,7 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 14,
     wastePercentDefault: 12,
     colorHex: "#FFFFFF",
+    availableColors: ACRYLIC_COLORS,  // ✅ أكريليك له ألوان
     updatedAt: new Date().toISOString(),
   },
   {
@@ -124,21 +174,23 @@ export const DEFAULT_MATERIALS: Material[] = [
     edgeBandingPricePerMeter: 20,
     wastePercentDefault: 12,
     colorHex: "#111111",
+    availableColors: ACRYLIC_COLORS,  // ✅ بولي لاك له ألوان
     updatedAt: new Date().toISOString(),
   },
   {
     id: "hpl_08_standard",
     nameAr: "HPL طبقة تغليف 0.8مم - لامايكا",
     category: "hpl",
-    boardType: "mdf", // usually pressed on MDF
+    boardType: "mdf",
     supplierName: "Lamaica",
     standardSheet: { widthMm: 1220, heightMm: 2440, thicknessMm: 1 },
     pricePerSheet: 4500,
-    hasGrainDirection: true, // الـ HPL الخشبي له عرق
+    hasGrainDirection: true,
     isPricePlaceholder: true,
     edgeBandingPricePerMeter: 12,
     wastePercentDefault: 8,
     colorHex: "#C9A876",
+    availableColors: HPL_COLORS,  // ✅ HPL له ألوان
     updatedAt: new Date().toISOString(),
   }
 ];

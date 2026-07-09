@@ -168,33 +168,119 @@ export const ProjectSettingsModal = ({ isOpen, onClose }: Props) => {
                   ))}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400">لون الوحدات السفلية</label>
-                <input 
-                  type="color" 
-                  value={localSettings.defaultBaseColor || '#3b82f6'}
-                  onChange={e => handleChange('defaultBaseColor', e.target.value)}
-                  className="w-full h-9 bg-zinc-900 border border-zinc-800 rounded-lg px-1 py-1 text-white text-sm outline-none cursor-pointer"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400">لون الوحدات العلوية</label>
-                <input 
-                  type="color" 
-                  value={localSettings.defaultWallColor || '#10b981'}
-                  onChange={e => handleChange('defaultWallColor', e.target.value)}
-                  className="w-full h-9 bg-zinc-900 border border-zinc-800 rounded-lg px-1 py-1 text-white text-sm outline-none cursor-pointer"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-zinc-400">لون الوحدات الطولية (Tall)</label>
-                <input 
-                  type="color" 
-                  value={localSettings.defaultTallColor || '#8b5cf6'}
-                  onChange={e => handleChange('defaultTallColor', e.target.value)}
-                  className="w-full h-9 bg-zinc-900 border border-zinc-800 rounded-lg px-1 py-1 text-white text-sm outline-none cursor-pointer"
-                />
-              </div>
+
+              {/* Color Selectors based on material */}
+              {(() => {
+                const bodyMaterial = materials.find(m => m.id === localSettings.defaultMaterialId);
+                const bodyColors = bodyMaterial?.availableColors || [];
+                
+                const doorMaterial = materials.find(m => m.id === localSettings.defaultDoorMaterialId);
+                const doorColors = doorMaterial?.availableColors || [];
+
+                return (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-400">لون البدن (الوحدات السفلية)</label>
+                      {bodyColors.length > 0 ? (
+                        <select 
+                          value={localSettings.defaultBaseColor || ''}
+                          onChange={e => handleChange('defaultBaseColor', e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50"
+                        >
+                          <option value="">اختر اللون...</option>
+                          {bodyColors.map(c => (
+                            <option key={c.id} value={c.colorHex}>{c.nameAr}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 text-sm">
+                          لون موحد للخامة
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-400">لون البدن (الوحدات العلوية)</label>
+                      {bodyColors.length > 0 ? (
+                        <select 
+                          value={localSettings.defaultWallColor || ''}
+                          onChange={e => handleChange('defaultWallColor', e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50"
+                        >
+                          <option value="">اختر اللون...</option>
+                          {bodyColors.map(c => (
+                            <option key={c.id} value={c.colorHex}>{c.nameAr}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 text-sm">
+                          لون موحد للخامة
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-400">لون البدن (الوحدات الطولية)</label>
+                      {bodyColors.length > 0 ? (
+                        <select 
+                          value={localSettings.defaultTallColor || ''}
+                          onChange={e => handleChange('defaultTallColor', e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50"
+                        >
+                          <option value="">اختر اللون...</option>
+                          {bodyColors.map(c => (
+                            <option key={c.id} value={c.colorHex}>{c.nameAr}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 text-sm">
+                          لون موحد للخامة
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-400">لون البدن (وحدات المستوى الثاني)</label>
+                      {bodyColors.length > 0 ? (
+                        <select 
+                          value={localSettings.defaultLoftColor || ''}
+                          onChange={e => handleChange('defaultLoftColor', e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50"
+                        >
+                          <option value="">اختر اللون...</option>
+                          {bodyColors.map(c => (
+                            <option key={c.id} value={c.colorHex}>{c.nameAr}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 text-sm">
+                          لون موحد للخامة
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs text-zinc-400">لون الأبواب الافتراضي</label>
+                      {doorColors.length > 0 ? (
+                        <select 
+                          value={localSettings.defaultWallColorHex || ''}
+                          onChange={e => handleChange('defaultWallColorHex', e.target.value)}
+                          className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-amber-500/50"
+                        >
+                          <option value="">اختر اللون...</option>
+                          {doorColors.map(c => (
+                            <option key={c.id} value={c.colorHex}>{c.nameAr}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-zinc-500 text-sm">
+                          لون موحد للخامة
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </section>
 
