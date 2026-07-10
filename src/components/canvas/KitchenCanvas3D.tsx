@@ -206,14 +206,6 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                 <Appliance3D type="washing_machine" width={w} height={h} depth={d} />
               ) : isDryer ? (
                 <Appliance3D type="dryer" width={w} height={h} depth={d} />
-              ) : isSink ? (
-                <group>
-                  {/* Render the standard base carcass but with a sink on top */}
-                  <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
-                    <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} />
-                  </Box>
-                  <Appliance3D type="sink" width={w} height={h} depth={d} />
-                </group>
               ) : unit.type.startsWith('corner') ? (
                 <group>
                   {/* Back Wall (along X) */}

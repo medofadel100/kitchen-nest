@@ -13,20 +13,36 @@ export const KitchenCanvas = () => {
   const { units, selectElement, room, activeTool, setActiveTool, addRoomObstacle, addRoomFixture, displayUnit, duplicateElement, toggleElementVisibility, isSnappingEnabled } = useProjectStore();
   const { historyVisible } = useProjectStore();
   const stageRef = useRef<Konva.Stage>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const [isMounted, setIsMounted] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
+  const [stageSize, setStageSize] = useState({ width: 1200, height: 800 });
 
   const [measureStart, setMeasureStart] = useState<{ x: number, y: number } | null>(null);
   const [measureCurrent, setMeasureCurrent] = useState<{ x: number, y: number } | null>(null);
   
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string, type: 'unit' | 'fixture' | 'obstacle' } | null>(null);
 
-  const CANVAS_WIDTH = 1200;
-  const CANVAS_HEIGHT = 800;
   const SCALE = 0.1; // 1px = 10mm
 
   // ---------- ALL HOOKS MUST BE BEFORE ANY EARLY RETURN ----------
+
+  // Responsive Stage size
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        setStageSize({
+          width: containerRef.current.offsetWidth,
+          height: containerRef.current.offsetHeight,
+        });
+      }
+    };
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+    return () => resizeObserver.disconnect();
+  }, []);
 
   // Close context menu on click anywhere
   useEffect(() => {
@@ -123,21 +139,21 @@ export const KitchenCanvas = () => {
   // Background Grid
   const gridSizePx = 50;
   const gridLines = [];
-  for (let i = 0; i < CANVAS_WIDTH / gridSizePx; i++) {
+  for (let i = 0; i < stageSize.width / gridSizePx; i++) {
     gridLines.push(
       <Line
         key={`v-${i}`}
-        points={[Math.round(i * gridSizePx) + 0.5, 0, Math.round(i * gridSizePx) + 0.5, CANVAS_HEIGHT]}
+        points={[Math.round(i * gridSizePx) + 0.5, 0, Math.round(i * gridSizePx) + 0.5, stageSize.height]}
         stroke="#27272a" // zinc-800
         strokeWidth={1}
       />
     );
   }
-  for (let j = 0; j < CANVAS_HEIGHT / gridSizePx; j++) {
+  for (let j = 0; j < stageSize.height / gridSizePx; j++) {
     gridLines.push(
       <Line
         key={`h-${j}`}
-        points={[0, Math.round(j * gridSizePx) + 0.5, CANVAS_WIDTH, Math.round(j * gridSizePx) + 0.5]}
+        points={[0, Math.round(j * gridSizePx) + 0.5, stageSize.width, Math.round(j * gridSizePx) + 0.5]}
         stroke="#27272a" // zinc-800
         strokeWidth={1}
       />
@@ -145,8 +161,8 @@ export const KitchenCanvas = () => {
   }
 
   // Center room in canvas
-  const offsetX = room ? (CANVAS_WIDTH - room.widthMm * SCALE) / 2 : 0;
-  const offsetY = room ? (CANVAS_HEIGHT - room.lengthMm * SCALE) / 2 : 0;
+  const offsetX = room ? (stageSize.width - room.widthMm * SCALE) / 2 : 0;
+  const offsetY = room ? (stageSize.height - room.lengthMm * SCALE) / 2 : 0;
 
   const getPointerPositionMm = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     const stage = e.target.getStage();
@@ -222,12 +238,12 @@ export const KitchenCanvas = () => {
   };
 
   return (
-    <div className="w-full h-full bg-transparent overflow-auto relative">
+    <div ref={containerRef} className="w-full h-full bg-transparent overflow-auto relative">
       {showSplash && <SplashLoader />}
       <Stage
 
-        width={CANVAS_WIDTH}
-        height={CANVAS_HEIGHT}
+        width={stageSize.width}
+        height={stageSize.height}
         ref={stageRef}
         draggable={false}
         onWheel={(e) => {
