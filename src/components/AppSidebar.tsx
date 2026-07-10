@@ -1,13 +1,17 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, Settings, Box, Users, Package } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { LayoutDashboard, FolderKanban, Settings, Box, Users, Package, CreditCard, LogOut, User } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export const AppSidebar = () => {
   const pathname = usePathname();
+  const router = useRouter();
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
 
   const links = [
     { href: '/', label: 'الرئيسية', icon: LayoutDashboard },
@@ -16,6 +20,15 @@ export const AppSidebar = () => {
     { href: '/employees', label: 'شؤون الموظفين', icon: Users },
     { href: '/settings', label: 'الإعدادات', icon: Settings },
   ];
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
+  };
 
   return (
     <motion.div 
@@ -73,8 +86,12 @@ export const AppSidebar = () => {
         </ul>
       </nav>
 
-      <div className="p-6 m-4 rounded-2xl bg-gradient-to-b from-zinc-800/50 to-zinc-900/50 border border-zinc-800 backdrop-blur-md">
-        <div className="flex items-center justify-between">
+      {/* Workshop Account Dropdown */}
+      <div className="p-6 m-4 rounded-2xl bg-gradient-to-b from-zinc-800/50 to-zinc-900/50 border border-zinc-800 backdrop-blur-md relative">
+        <div 
+          className="flex items-center justify-between cursor-pointer"
+          onClick={() => setShowAccountMenu(!showAccountMenu)}
+        >
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
               <span className="text-emerald-400 font-bold text-xs">WP</span>
@@ -85,6 +102,43 @@ export const AppSidebar = () => {
             </div>
           </div>
         </div>
+
+        {/* Dropdown Menu */}
+        {showAccountMenu && (
+          <div className="absolute bottom-full left-6 right-6 mb-2 bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl overflow-hidden z-20">
+            <button
+              onClick={() => {
+                router.push('/settings/profile');
+                setShowAccountMenu(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+            >
+              <User size={16} />
+              إعدادات الورشة
+            </button>
+            <button
+              onClick={() => {
+                router.push('/settings/billing');
+                setShowAccountMenu(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+            >
+              <CreditCard size={16} />
+              الاشتراك والفوترة
+            </button>
+            <div className="h-px bg-zinc-800"></div>
+            <button
+              onClick={() => {
+                handleLogout();
+                setShowAccountMenu(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+            >
+              <LogOut size={16} />
+              تسجيل الخروج
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );
