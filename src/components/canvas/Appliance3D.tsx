@@ -19,111 +19,123 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
   // Fridge variants
   if (type === 'fridge') {
     if (variant === 'compact') {
-      // Compact fridge (under counter)
+      // Compact fridge (under counter) - more realistic
       return (
         <group>
-          {/* Main Body */}
-          <Box args={[w, h, d]} castShadow receiveShadow>
-            <meshStandardMaterial color="#f1f5f9" metalness={0.6} roughness={0.3} />
+          {/* Main Body - positioned at back */}
+          <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.25} />
           </Box>
-          {/* Door */}
-          <Box args={[w - 0.02, h - 0.02, 0.03]} position={[0, 0, d / 2 - 0.015]} castShadow>
-            <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.2} />
+          {/* Door - positioned at front face */}
+          <Box args={[w - 0.02, h - 0.02, 0.025]} position={[0, 0, d / 2 - 0.0125]} castShadow>
+            <meshStandardMaterial color="#f8fafc" metalness={0.8} roughness={0.2} />
           </Box>
-          {/* Handle */}
-          <Box args={[0.015, h * 0.5, 0.02]} position={[-w / 2 + 0.04, 0, d / 2 + 0.02]} castShadow>
+          {/* Handle - vertical bar style */}
+          <Box args={[0.018, h * 0.4, 0.02]} position={[-w / 2 + 0.05, 0, d / 2 + 0.015]} castShadow>
             <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
+          </Box>
+          {/* Top hinge */}
+          <Box args={[0.015, 0.015, 0.025]} position={[-w / 2 + 0.05, h / 2 - 0.02, d / 2 - 0.005]} castShadow>
+            <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
+          </Box>
+          {/* Bottom hinge */}
+          <Box args={[0.015, 0.015, 0.025]} position={[-w / 2 + 0.05, -h / 2 + 0.02, d / 2 - 0.005]} castShadow>
+            <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
           </Box>
         </group>
       );
     }
     
     if (variant === 'premium') {
-      // Premium side-by-side fridge
+      // Premium side-by-side fridge - more realistic
       return (
         <group>
-          {/* Main Body */}
-          <Box args={[w, h, d]} castShadow receiveShadow>
-            <meshStandardMaterial color="#f8fafc" metalness={0.8} roughness={0.2} />
+          {/* Main Body - positioned at back */}
+          <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color="#f0f9ff" metalness={0.8} roughness={0.2} />
           </Box>
-          {/* Left Door (Freezer) */}
-          <Box args={[w * 0.45, h - 0.02, 0.04]} position={[-w * 0.275, 0, d / 2 - 0.02]} castShadow>
-            <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.15} />
+          {/* Left Door (Freezer) - positioned at front */}
+          <Box args={[w * 0.45, h - 0.02, 0.035]} position={[-w * 0.275, 0, d / 2 - 0.0175]} castShadow>
+            <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.15} />
           </Box>
-          {/* Right Door (Fridge) */}
-          <Box args={[w * 0.45, h - 0.02, 0.04]} position={[w * 0.275, 0, d / 2 - 0.02]} castShadow>
-            <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.15} />
+          {/* Right Door (Fridge) - positioned at front */}
+          <Box args={[w * 0.45, h - 0.02, 0.035]} position={[w * 0.275, 0, d / 2 - 0.0175]} castShadow>
+            <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.15} />
           </Box>
-          {/* Center Divider */}
-          <Box args={[0.02, h - 0.04, 0.045]} position={[0, 0, d / 2 - 0.02]} castShadow>
+          {/* Center Divider - at front */}
+          <Box args={[0.015, h - 0.03, 0.04]} position={[0, 0, d / 2 - 0.02]} castShadow>
             <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
           </Box>
-          {/* Left Handle */}
-          <Box args={[0.02, h * 0.6, 0.03]} position={[-w * 0.4, 0, d / 2 + 0.025]} castShadow>
-            <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
+          {/* Left Handle - vertical bar */}
+          <Box args={[0.018, h * 0.5, 0.02]} position={[-w * 0.4, 0, d / 2 + 0.018]} castShadow>
+            <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
           </Box>
-          {/* Right Handle */}
-          <Box args={[0.02, h * 0.6, 0.03]} position={[w * 0.4, 0, d / 2 + 0.025]} castShadow>
-            <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
+          {/* Right Handle - vertical bar */}
+          <Box args={[0.018, h * 0.5, 0.02]} position={[w * 0.4, 0, d / 2 + 0.018]} castShadow>
+            <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
           </Box>
-          {/* Water Dispenser */}
-          <Box args={[0.15, 0.2, 0.05]} position={[w * 0.35, h * 0.2, d / 2 + 0.01]} castShadow>
-            <meshStandardMaterial color="#1e293b" metalness={0.5} roughness={0.3} />
+          {/* Water Dispenser - on right door */}
+          <Box args={[0.12, 0.18, 0.03]} position={[w * 0.35, h * 0.25, d / 2 + 0.02]} castShadow>
+            <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.3} />
           </Box>
+          {/* Ice dispenser button */}
+          <Cylinder args={[0.012, 0.012, 0.01, 16]} position={[w * 0.35, h * 0.15, d / 2 + 0.035]} castShadow>
+            <meshStandardMaterial color="#3b82f6" metalness={0.7} roughness={0.3} />
+          </Cylinder>
         </group>
       );
     }
     
-    // Standard fridge (top freezer)
+    // Standard fridge (top freezer) - more realistic
     return (
       <group>
-        {/* Main Body */}
-        <Box args={[w, h, d]} castShadow receiveShadow>
-          <meshStandardMaterial color="#f1f5f9" metalness={0.6} roughness={0.3} />
+        {/* Main Body - positioned at back */}
+        <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.25} />
         </Box>
-        {/* Top Freezer Door */}
-        <Box args={[w - 0.02, h * 0.3, 0.04]} position={[0, h * 0.35, d / 2 - 0.02]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.15} />
+        {/* Top Freezer Door - positioned at front */}
+        <Box args={[w - 0.02, h * 0.32, 0.035]} position={[0, h * 0.34, d / 2 - 0.0175]} castShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.15} />
         </Box>
-        {/* Bottom Fridge Door */}
-        <Box args={[w - 0.02, h * 0.65, 0.04]} position={[0, -h * 0.175, d / 2 - 0.02]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.15} />
+        {/* Bottom Fridge Door - positioned at front */}
+        <Box args={[w - 0.02, h * 0.63, 0.035]} position={[0, -h * 0.185, d / 2 - 0.0175]} castShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.15} />
         </Box>
-        {/* Divider */}
-        <Box args={[w - 0.02, 0.01, 0.045]} position={[0, h * 0.175, d / 2 - 0.02]} castShadow>
+        {/* Divider - at front */}
+        <Box args={[w - 0.02, 0.012, 0.04]} position={[0, h * 0.175, d / 2 - 0.02]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
         </Box>
-        {/* Top Handle */}
-        <Box args={[0.02, h * 0.2, 0.03]} position={[-w / 2 + 0.05, h * 0.35, d / 2 + 0.015]} castShadow>
-          <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
+        {/* Top Handle - vertical bar */}
+        <Box args={[0.018, h * 0.18, 0.02]} position={[-w / 2 + 0.05, h * 0.34, d / 2 + 0.018]} castShadow>
+          <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
         </Box>
-        {/* Bottom Handle */}
-        <Box args={[0.02, h * 0.35, 0.03]} position={[-w / 2 + 0.05, -h * 0.175, d / 2 + 0.015]} castShadow>
-          <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
+        {/* Bottom Handle - vertical bar */}
+        <Box args={[0.018, h * 0.32, 0.02]} position={[-w / 2 + 0.05, -h * 0.185, d / 2 + 0.018]} castShadow>
+          <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
         </Box>
       </group>
     );
   }
 
-  // Freezer (separate unit)
+  // Freezer (separate unit) - more realistic
   if (type === 'freezer') {
     return (
       <group>
-        {/* Main Body */}
-        <Box args={[w, h, d]} castShadow receiveShadow>
-          <meshStandardMaterial color="#f1f5f9" metalness={0.6} roughness={0.3} />
+        {/* Main Body - positioned at back */}
+        <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.25} />
         </Box>
-        {/* Door */}
-        <Box args={[w - 0.02, h - 0.02, 0.04]} position={[0, 0, d / 2 - 0.02]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.15} />
+        {/* Door - positioned at front */}
+        <Box args={[w - 0.02, h - 0.02, 0.035]} position={[0, 0, d / 2 - 0.0175]} castShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.15} />
         </Box>
-        {/* Handle */}
-        <Box args={[0.02, h * 0.5, 0.03]} position={[-w / 2 + 0.05, 0, d / 2 + 0.02]} castShadow>
-          <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
+        {/* Handle - vertical bar */}
+        <Box args={[0.018, h * 0.4, 0.02]} position={[-w / 2 + 0.05, 0, d / 2 + 0.018]} castShadow>
+          <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
         </Box>
-        {/* Ice Dispenser */}
-        <Box args={[0.12, 0.15, 0.04]} position={[w * 0.35, h * 0.2, d / 2 + 0.01]} castShadow>
-          <meshStandardMaterial color="#1e293b" metalness={0.5} roughness={0.3} />
+        {/* Ice Dispenser - at front */}
+        <Box args={[0.1, 0.12, 0.03]} position={[w * 0.3, h * 0.15, d / 2 + 0.02]} castShadow>
+          <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.3} />
         </Box>
       </group>
     );
@@ -132,242 +144,266 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
   // Oven variants
   if (type === 'oven') {
     if (variant === 'compact') {
-      // Compact countertop oven
+      // Compact countertop oven - more realistic
       return (
         <group>
-          {/* Body */}
-          <Box args={[w, h, d]} castShadow receiveShadow>
-            <meshStandardMaterial color="#1e293b" metalness={0.5} roughness={0.5} />
+          {/* Body - positioned at back */}
+          <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+            <meshStandardMaterial color="#0f172a" metalness={0.6} roughness={0.4} />
           </Box>
-          {/* Glass Door */}
-          <Box args={[w - 0.04, h - 0.08, 0.015]} position={[0, -0.02, d / 2 + 0.008]} castShadow>
-            <meshPhysicalMaterial color="#0f172a" metalness={0.9} roughness={0.1} transparent opacity={0.85} />
+          {/* Glass Door - at front */}
+          <Box args={[w - 0.03, h - 0.06, 0.012]} position={[0, 0, d / 2 + 0.006]} castShadow>
+            <meshPhysicalMaterial color="#0f172a" metalness={0.9} roughness={0.1} transparent opacity={0.7} />
           </Box>
-          {/* Inner Light */}
-          <Box args={[w - 0.08, h - 0.12, 0.01]} position={[0, -0.02, d / 2 - 0.04]}>
-            <meshBasicMaterial color="#fbbf24" />
+          {/* Inner Chamber - darker */}
+          <Box args={[w - 0.06, h - 0.1, 0.008]} position={[0, 0, d / 2 - 0.025]}>
+            <meshStandardMaterial color="#020617" metalness={0.5} roughness={0.6} />
           </Box>
-          {/* Handle */}
-          <Box args={[w - 0.08, 0.015, 0.025]} position={[0, h / 2 - 0.05, d / 2 + 0.02]} castShadow>
-            <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
+          {/* Heating elements - visible at bottom */}
+          <Box args={[w - 0.1, 0.005, d - 0.05]} position={[0, -h / 2 + 0.02, 0]}>
+            <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.3} />
+          </Box>
+          {/* Handle - horizontal bar */}
+          <Box args={[w - 0.06, 0.012, 0.02]} position={[0, h / 2 - 0.04, d / 2 + 0.015]} castShadow>
+            <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
           </Box>
           {/* Knobs */}
-          {[0.3, 0.1, -0.1, -0.3].map((yPos, i) => (
+          {[0.2, 0, -0.2].map((yPos, i) => (
             <Cylinder 
               key={i}
-              args={[0.015, 0.015, 0.02, 16]} 
-              position={[w / 2 - 0.04, yPos, d / 2 + 0.02]} 
+              args={[0.014, 0.014, 0.018, 16]} 
+              position={[w / 2 - 0.035, yPos, d / 2 + 0.022]} 
               rotation={[Math.PI / 2, 0, 0]} 
               castShadow
             >
-              <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
+              <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.3} />
             </Cylinder>
           ))}
         </group>
       );
     }
     
-    // Standard built-in oven
+    // Standard built-in oven - more realistic
     return (
       <group>
-        {/* Body */}
-        <Box args={[w, h, d]} castShadow receiveShadow>
-          <meshStandardMaterial color="#1e293b" metalness={0.5} roughness={0.5} />
+        {/* Body - positioned at back */}
+        <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#0f172a" metalness={0.6} roughness={0.4} />
         </Box>
-        {/* Glass Door */}
-        <Box args={[w - 0.04, h - 0.12, 0.02]} position={[0, -0.03, d / 2 + 0.01]} castShadow>
-          <meshPhysicalMaterial color="#0f172a" metalness={0.9} roughness={0.1} transparent opacity={0.9} />
+        {/* Glass Door - at front */}
+        <Box args={[w - 0.03, h - 0.06, 0.015]} position={[0, 0, d / 2 + 0.0075]} castShadow>
+          <meshPhysicalMaterial color="#0f172a" metalness={0.9} roughness={0.1} transparent opacity={0.75} />
         </Box>
-        {/* Inner Light / Grill */}
-        <Box args={[w - 0.1, h - 0.18, 0.01]} position={[0, -0.03, d / 2 - 0.06]}>
-          <meshBasicMaterial color="#f59e0b" />
+        {/* Inner Chamber - darker with visible racks */}
+        <Box args={[w - 0.08, h - 0.12, 0.008]} position={[0, 0, d / 2 - 0.03]}>
+          <meshStandardMaterial color="#020617" metalness={0.5} roughness={0.6} />
         </Box>
-        {/* Top Control Panel */}
-        <Box args={[w - 0.04, 0.08, 0.02]} position={[0, h / 2 - 0.05, d / 2 + 0.01]} castShadow>
-          <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
+        {/* Top Control Panel - at front */}
+        <Box args={[w - 0.03, 0.06, 0.015]} position={[0, h / 2 - 0.03, d / 2 + 0.0075]} castShadow>
+          <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.3} />
         </Box>
-        {/* Display */}
-        <Box args={[0.08, 0.025, 0.005]} position={[0, h / 2 - 0.05, d / 2 + 0.02]} castShadow>
-          <meshStandardMaterial color="#0f172a" emissive="#3b82f6" emissiveIntensity={0.5} />
+        {/* Display - on control panel */}
+        <Box args={[0.06, 0.02, 0.003]} position={[0, h / 2 - 0.03, d / 2 + 0.012]} castShadow>
+          <meshStandardMaterial color="#0f172a" emissive="#3b82f6" emissiveIntensity={0.4} />
         </Box>
-        {/* Knobs */}
-        {[-0.25, -0.15, 0.15, 0.25].map((yPos, i) => (
+        {/* Knobs - on control panel */}
+        {[-0.15, 0, 0.15].map((yPos, i) => (
           <Cylinder 
             key={i}
-            args={[0.018, 0.018, 0.025, 16]} 
-            position={[w / 2 - 0.08, yPos, d / 2 + 0.025]} 
+            args={[0.016, 0.016, 0.02, 16]} 
+            position={[w / 2 - 0.04, yPos, d / 2 + 0.022]} 
             rotation={[Math.PI / 2, 0, 0]} 
             castShadow
           >
-            <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
+            <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.3} />
           </Cylinder>
         ))}
-        {/* Handle */}
-        <Box args={[w - 0.1, 0.02, 0.035]} position={[0, h / 2 - 0.12, d / 2 + 0.035]} castShadow>
+        {/* Handle - horizontal bar below door */}
+        <Box args={[w - 0.08, 0.015, 0.025]} position={[0, h / 2 - 0.15, d / 2 + 0.02]} castShadow>
           <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
         </Box>
       </group>
     );
   }
 
-  // Stove/Cooktop
+  // Stove/Cooktop - more realistic
   if (type === 'stove') {
     return (
       <group>
-        {/* Main Body */}
-        <Box args={[w, h, d]} castShadow receiveShadow>
-          <meshStandardMaterial color="#1e293b" metalness={0.5} roughness={0.5} />
+        {/* Main Body - positioned at back */}
+        <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
         </Box>
-        {/* Cooktop Surface */}
-        <Box args={[w - 0.02, 0.01, d - 0.02]} position={[0, h / 2 - 0.01, 0]} castShadow>
+        {/* Cooktop Surface - at top front */}
+        <Box args={[w - 0.02, 0.015, d - 0.02]} position={[0, h / 2 - 0.0075, 0]} castShadow>
           <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.2} />
         </Box>
-        {/* Burners */}
+        {/* Burner Controls - at front */}
+        <Box args={[w - 0.04, 0.05, 0.015]} position={[0, h / 2 - 0.025, d / 2 + 0.0075]} castShadow>
+          <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
+        </Box>
+        {/* Burners - with more realistic design */}
         {[
-          { x: -w * 0.25, z: -d * 0.25, r: 0.08 },
-          { x: w * 0.25, z: -d * 0.25, r: 0.1 },
-          { x: -w * 0.25, z: d * 0.25, r: 0.1 },
-          { x: w * 0.25, z: d * 0.25, r: 0.08 },
+          { x: -w * 0.25, z: -d * 0.25, r: 0.08, color: '#64748b' },
+          { x: w * 0.25, z: -d * 0.25, r: 0.1, color: '#475569' },
+          { x: -w * 0.25, z: d * 0.25, r: 0.1, color: '#475569' },
+          { x: w * 0.25, z: d * 0.25, r: 0.08, color: '#64748b' },
         ].map((burner, i) => (
           <group key={i}>
+            {/* Burner Base */}
+            <Cylinder args={[burner.r * 0.8, burner.r * 0.8, 0.008, 24]} position={[burner.x, h / 2, burner.z]} castShadow>
+              <meshStandardMaterial color={burner.color} metalness={0.6} roughness={0.4} />
+            </Cylinder>
             {/* Burner Ring */}
-            <Torus args={[burner.r, 0.008, 8, 32]} position={[burner.x, h / 2, burner.z]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-              <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
+            <Torus args={[burner.r, 0.006, 8, 32]} position={[burner.x, h / 2 + 0.008, burner.z]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+              <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
             </Torus>
             {/* Burner Center */}
-            <Cylinder args={[burner.r * 0.3, burner.r * 0.3, 0.005, 16]} position={[burner.x, h / 2 + 0.005, burner.z]} castShadow>
-              <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
+            <Cylinder args={[burner.r * 0.25, burner.r * 0.25, 0.003, 16]} position={[burner.x, h / 2 + 0.012, burner.z]} castShadow>
+              <meshStandardMaterial color="#e2e8f0" metalness={0.8} roughness={0.2} />
             </Cylinder>
           </group>
         ))}
-        {/* Control Panel */}
-        <Box args={[w - 0.04, 0.06, 0.02]} position={[0, h / 2 - 0.04, d / 2 + 0.01]} castShadow>
-          <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.3} />
-        </Box>
-        {/* Knobs */}
-        {[-0.2, -0.07, 0.07, 0.2].map((xPos, i) => (
+        {/* Control Knobs - on control panel */}
+        {[-0.15, -0.05, 0.05, 0.15].map((xPos, i) => (
           <Cylinder 
             key={i}
-            args={[0.015, 0.015, 0.02, 16]} 
-            position={[xPos, h / 2 - 0.04, d / 2 + 0.025]} 
+            args={[0.018, 0.018, 0.02, 16]} 
+            position={[xPos, h / 2 - 0.025, d / 2 + 0.022]} 
             rotation={[0, 0, 0]} 
             castShadow
           >
-            <meshStandardMaterial color="#475569" metalness={0.6} roughness={0.4} />
+            <meshStandardMaterial color="#64748b" metalness={0.7} roughness={0.3} />
           </Cylinder>
         ))}
       </group>
     );
   }
 
-  // Dishwasher
+  // Dishwasher - more realistic
   if (type === 'dishwasher') {
     return (
       <group>
-        {/* Main Body */}
-        <Box args={[w, h, d]} castShadow receiveShadow>
-          <meshStandardMaterial color="#f1f5f9" metalness={0.6} roughness={0.3} />
+        {/* Main Body - positioned at back */}
+        <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.25} />
         </Box>
-        {/* Front Panel */}
+        {/* Front Panel - at front */}
         <Box args={[w - 0.02, h - 0.02, 0.02]} position={[0, 0, d / 2 - 0.01]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.2} />
+          <meshStandardMaterial color="#f0f9ff" metalness={0.7} roughness={0.2} />
         </Box>
-        {/* Handle */}
-        <Box args={[w * 0.6, 0.015, 0.025]} position={[0, h * 0.2, d / 2 + 0.015]} castShadow>
-          <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
+        {/* Handle - horizontal bar */}
+        <Box args={[w * 0.5, 0.018, 0.025]} position={[0, h * 0.15, d / 2 + 0.018]} castShadow>
+          <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
         </Box>
-        {/* Control Panel */}
-        <Box args={[w - 0.04, 0.05, 0.015]} position={[0, h / 2 - 0.04, d / 2 + 0.005]} castShadow>
+        {/* Control Panel - at top front */}
+        <Box args={[w - 0.04, 0.05, 0.012]} position={[0, h / 2 - 0.025, d / 2 + 0.006]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.7} roughness={0.3} />
+        </Box>
+        {/* LED indicator */}
+        <Box args={[0.04, 0.015, 0.003]} position={[0, h / 2 - 0.025, d / 2 + 0.012]}>
+          <meshStandardMaterial color="#22c55e" emissive="#22c55e" emissiveIntensity={0.5} />
         </Box>
       </group>
     );
   }
 
-  // Washing Machine
+  // Washing Machine - more realistic
   if (type === 'washing_machine') {
     return (
       <group>
-        {/* Main Body */}
-        <Box args={[w, h, d]} castShadow receiveShadow>
-          <meshStandardMaterial color="#f1f5f9" metalness={0.6} roughness={0.3} />
+        {/* Main Body - positioned at back */}
+        <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.25} />
         </Box>
-        {/* Front Panel */}
+        {/* Front Panel - at front */}
         <Box args={[w - 0.02, h - 0.02, 0.02]} position={[0, 0, d / 2 - 0.01]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.2} />
+          <meshStandardMaterial color="#f0f9ff" metalness={0.7} roughness={0.2} />
         </Box>
-        {/* Door (Circular) */}
-        <Cylinder args={[w * 0.35, w * 0.35, 0.015, 32]} position={[0, -h * 0.15, d / 2 + 0.005]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        {/* Door (Circular) - at front */}
+        <Cylinder args={[w * 0.32, w * 0.32, 0.012, 32]} position={[0, -h * 0.15, d / 2 + 0.006]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
         </Cylinder>
-        {/* Door Inner Ring */}
-        <Torus args={[w * 0.3, 0.008, 8, 32]} position={[0, -h * 0.15, d / 2 + 0.015]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-          <meshStandardMaterial color="#94a3b8" metalness={0.9} roughness={0.1} />
-        </Torus>
-        {/* Control Panel */}
-        <Box args={[w - 0.04, 0.08, 0.015]} position={[0, h / 2 - 0.05, d / 2 + 0.005]} castShadow>
+        {/* Door Glass - transparent */}
+        <Cylinder args={[w * 0.3, w * 0.3, 0.008, 32]} position={[0, -h * 0.15, d / 2 + 0.01]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <meshPhysicalMaterial color="#e0e7ff" metalness={0.6} roughness={0.3} transparent opacity={0.4} />
+        </Cylinder>
+        {/* Door Handle */}
+        <Box args={[0.025, 0.025, 0.02]} position={[0, -h * 0.15, d / 2 + 0.025]} castShadow>
+          <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
+        </Box>
+        {/* Control Panel - at top front */}
+        <Box args={[w - 0.04, 0.07, 0.012]} position={[0, h / 2 - 0.035, d / 2 + 0.006]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.7} roughness={0.3} />
         </Box>
         {/* Display */}
-        <Box args={[0.06, 0.025, 0.005]} position={[0, h / 2 - 0.05, d / 2 + 0.015]} castShadow>
+        <Box args={[0.05, 0.02, 0.003]} position={[0, h / 2 - 0.035, d / 2 + 0.012]} castShadow>
           <meshStandardMaterial color="#0f172a" emissive="#3b82f6" emissiveIntensity={0.5} />
         </Box>
       </group>
     );
   }
 
-  // Dryer
+  // Dryer - more realistic
   if (type === 'dryer') {
     return (
       <group>
-        {/* Main Body */}
-        <Box args={[w, h, d]} castShadow receiveShadow>
-          <meshStandardMaterial color="#f1f5f9" metalness={0.6} roughness={0.3} />
+        {/* Main Body - positioned at back */}
+        <Box args={[w, h, d]} position={[0, 0, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#e0e7ff" metalness={0.7} roughness={0.25} />
         </Box>
-        {/* Front Panel */}
+        {/* Front Panel - at front */}
         <Box args={[w - 0.02, h - 0.02, 0.02]} position={[0, 0, d / 2 - 0.01]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.7} roughness={0.2} />
+          <meshStandardMaterial color="#f0f9ff" metalness={0.7} roughness={0.2} />
         </Box>
-        {/* Door (Circular) */}
-        <Cylinder args={[w * 0.35, w * 0.35, 0.015, 32]} position={[0, -h * 0.15, d / 2 + 0.005]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        {/* Door (Circular) - at front */}
+        <Cylinder args={[w * 0.32, w * 0.32, 0.012, 32]} position={[0, -h * 0.15, d / 2 + 0.006]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
         </Cylinder>
-        {/* Lint Filter (visible at top of door) */}
-        <Box args={[w * 0.5, 0.01, 0.02]} position={[0, h * 0.15, d / 2 + 0.005]} castShadow>
-          <meshStandardMaterial color="#94a3b8" metalness={0.5} roughness={0.5} />
+        {/* Lint Filter - visible at top of door */}
+        <Box args={[w * 0.45, 0.008, 0.015]} position={[0, h * 0.12, d / 2 + 0.008]} castShadow>
+          <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.4} />
         </Box>
-        {/* Control Panel */}
-        <Box args={[w - 0.04, 0.08, 0.015]} position={[0, h / 2 - 0.05, d / 2 + 0.005]} castShadow>
+        {/* Control Panel - at top front */}
+        <Box args={[w - 0.04, 0.07, 0.012]} position={[0, h / 2 - 0.035, d / 2 + 0.006]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.7} roughness={0.3} />
         </Box>
       </group>
     );
   }
 
-  // Sink
+  // Sink - improved realistic model
   if (type === 'sink') {
     return (
-      <group position={[0, h / 2 + 0.02, 0]}>
-        {/* Sink Basin - Single Bowl */}
-        <Box args={[w * 0.85, 0.15, d * 0.7]} position={[0, -0.05, 0]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.8} roughness={0.2} />
+      <group position={[0, h / 2 + 0.01, 0]}>
+        {/* Sink Countertop - stone/granite look */}
+        <Box args={[w, 0.015, d]} position={[0, 0.005, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#f8fafc" metalness={0.3} roughness={0.4} />
         </Box>
-        {/* Basin Inner (darker) */}
-        <Box args={[w * 0.75, 0.12, d * 0.6]} position={[0, -0.08, 0]}>
-          <meshStandardMaterial color="#64748b" metalness={0.5} roughness={0.5} />
+        {/* Sink Basin - Single Bowl - stainless steel */}
+        <Box args={[w * 0.8, 0.12, d * 0.65]} position={[0, -0.05, 0]} castShadow receiveShadow>
+          <meshStandardMaterial color="#e2e8f0" metalness={0.85} roughness={0.15} />
         </Box>
-        {/* Faucet Base */}
-        <Cylinder args={[0.025, 0.03, 0.12, 16]} position={[0, 0.02, -d * 0.3]} castShadow>
+        {/* Basin Inner - darker stainless steel */}
+        <Box args={[w * 0.7, 0.1, d * 0.55]} position={[0, -0.07, 0]}>
+          <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
+        </Box>
+        {/* Drain - at bottom center */}
+        <Cylinder args={[0.025, 0.03, 0.005, 16]} position={[0, -h / 2 - 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
+        </Cylinder>
+        {/* Faucet Base - at back of sink */}
+        <Cylinder args={[0.022, 0.025, 0.08, 16]} position={[0, 0.01, -d * 0.25]} castShadow>
           <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.1} />
         </Cylinder>
-        {/* Faucet Pipe */}
-        <Cylinder args={[0.012, 0.012, 0.18, 16]} position={[0, 0.12, -d * 0.2]} rotation={[0.3, 0, 0]} castShadow>
+        {/* Faucet Spout - curved */}
+        <Cylinder args={[0.012, 0.012, 0.12, 16]} position={[0, 0.08, -d * 0.15]} rotation={[0.5, 0, 0]} castShadow>
           <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.1} />
         </Cylinder>
-        {/* Faucet Spout */}
-        <Cylinder args={[0.015, 0.015, 0.08, 16]} position={[0, 0.2, -d * 0.12]} rotation={[0.8, 0, 0]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.1} />
-        </Cylinder>
+        {/* Faucet Aerator */}
+        <Sphere args={[0.01, 16, 16]} position={[0, 0.08, d * 0.15]} castShadow>
+          <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
+        </Sphere>
       </group>
     );
   }
