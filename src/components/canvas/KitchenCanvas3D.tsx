@@ -411,7 +411,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                   if (isSink) {
                     details.push(
                       <group key="sink-group" position={[0, h/2 + counterT, 0.01]}>
-                        <Appliance3D type="sink" width={w} height={0.01} depth={d} />
+                        <Appliance3D type="sink" width={w} height={0.15} depth={d} />
                       </group>
                     );
                   }
@@ -800,7 +800,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                 anchorX="center"
                 anchorY="middle"
               >
-                {formatMeasurement(unit.dimensions.widthMm, displayUnit, false)} x {formatMeasurement(unit.dimensions.heightMm, displayUnit, false)}
+                {formatMeasurement(unit.dimensions.widthMm, displayUnit || 'mm', false)} x {formatMeasurement(unit.dimensions.heightMm, displayUnit || 'mm', false)}
               </Text>
             </group>
           );
