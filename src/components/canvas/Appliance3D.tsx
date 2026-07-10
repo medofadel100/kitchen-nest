@@ -1,5 +1,6 @@
-import React from 'react';
-import { Box, Cylinder, Sphere, Torus } from '@react-three/drei';
+import React, { useMemo } from 'react';
+import { Box, Sphere, Torus } from '@react-three/drei';
+import * as THREE from 'three';
 
 interface Appliance3DProps {
   type: 'fridge' | 'oven' | 'sink' | 'dishwasher' | 'washing_machine' | 'dryer' | 'freezer' | 'stove';
@@ -79,9 +80,9 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
             <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.3} />
           </Box>
           {/* Ice dispenser button */}
-          <Cylinder args={[0.012, 0.012, 0.01, 16]} position={[w * 0.35, h * 0.15, d / 2 + 0.035]} castShadow>
+          <Sphere args={[0.012, 16, 16]} position={[w * 0.35, h * 0.15, d / 2 + 0.035]} castShadow>
             <meshStandardMaterial color="#3b82f6" metalness={0.7} roughness={0.3} />
-          </Cylinder>
+          </Sphere>
         </group>
       );
     }
@@ -169,15 +170,14 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
           </Box>
           {/* Knobs */}
           {[0.2, 0, -0.2].map((yPos, i) => (
-            <Cylinder 
+            <Sphere 
               key={i}
-              args={[0.014, 0.014, 0.018, 16]} 
+              args={[0.014, 16, 16]} 
               position={[w / 2 - 0.035, yPos, d / 2 + 0.022]} 
-              rotation={[Math.PI / 2, 0, 0]} 
               castShadow
             >
               <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.3} />
-            </Cylinder>
+            </Sphere>
           ))}
         </group>
       );
@@ -208,15 +208,14 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
         </Box>
         {/* Knobs - on control panel */}
         {[-0.15, 0, 0.15].map((yPos, i) => (
-          <Cylinder 
+          <Sphere 
             key={i}
-            args={[0.016, 0.016, 0.02, 16]} 
+            args={[0.016, 16, 16]} 
             position={[w / 2 - 0.04, yPos, d / 2 + 0.022]} 
-            rotation={[Math.PI / 2, 0, 0]} 
             castShadow
           >
             <meshStandardMaterial color="#475569" metalness={0.7} roughness={0.3} />
-          </Cylinder>
+          </Sphere>
         ))}
         {/* Handle - horizontal bar below door */}
         <Box args={[w - 0.08, 0.015, 0.025]} position={[0, h / 2 - 0.15, d / 2 + 0.02]} castShadow>
@@ -251,30 +250,29 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
         ].map((burner, i) => (
           <group key={i}>
             {/* Burner Base */}
-            <Cylinder args={[burner.r * 0.8, burner.r * 0.8, 0.008, 24]} position={[burner.x, h / 2, burner.z]} castShadow>
+            <Box args={[burner.r * 0.8, 0.008, burner.r * 0.8]} position={[burner.x, h / 2, burner.z]} castShadow>
               <meshStandardMaterial color={burner.color} metalness={0.6} roughness={0.4} />
-            </Cylinder>
+            </Box>
             {/* Burner Ring */}
             <Torus args={[burner.r, 0.006, 8, 32]} position={[burner.x, h / 2 + 0.008, burner.z]} rotation={[Math.PI / 2, 0, 0]} castShadow>
               <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
             </Torus>
             {/* Burner Center */}
-            <Cylinder args={[burner.r * 0.25, burner.r * 0.25, 0.003, 16]} position={[burner.x, h / 2 + 0.012, burner.z]} castShadow>
+            <Box args={[burner.r * 0.25, 0.003, burner.r * 0.25]} position={[burner.x, h / 2 + 0.012, burner.z]} castShadow>
               <meshStandardMaterial color="#e2e8f0" metalness={0.8} roughness={0.2} />
-            </Cylinder>
+            </Box>
           </group>
         ))}
         {/* Control Knobs - on control panel */}
         {[-0.15, -0.05, 0.05, 0.15].map((xPos, i) => (
-          <Cylinder 
+          <Sphere 
             key={i}
-            args={[0.018, 0.018, 0.02, 16]} 
+            args={[0.018, 16, 16]} 
             position={[xPos, h / 2 - 0.025, d / 2 + 0.022]} 
-            rotation={[0, 0, 0]} 
             castShadow
           >
             <meshStandardMaterial color="#64748b" metalness={0.7} roughness={0.3} />
-          </Cylinder>
+          </Sphere>
         ))}
       </group>
     );
@@ -321,13 +319,13 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
           <meshStandardMaterial color="#f0f9ff" metalness={0.7} roughness={0.2} />
         </Box>
         {/* Door (Circular) - at front */}
-        <Cylinder args={[w * 0.32, w * 0.32, 0.012, 32]} position={[0, -h * 0.15, d / 2 + 0.006]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <Box args={[w * 0.32, 0.012, w * 0.32]} position={[0, -h * 0.15, d / 2 + 0.006]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
-        </Cylinder>
+        </Box>
         {/* Door Glass - transparent */}
-        <Cylinder args={[w * 0.3, w * 0.3, 0.008, 32]} position={[0, -h * 0.15, d / 2 + 0.01]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <Box args={[w * 0.3, 0.008, w * 0.3]} position={[0, -h * 0.15, d / 2 + 0.01]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <meshPhysicalMaterial color="#e0e7ff" metalness={0.6} roughness={0.3} transparent opacity={0.4} />
-        </Cylinder>
+        </Box>
         {/* Door Handle */}
         <Box args={[0.025, 0.025, 0.02]} position={[0, -h * 0.15, d / 2 + 0.025]} castShadow>
           <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
@@ -357,9 +355,9 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
           <meshStandardMaterial color="#f0f9ff" metalness={0.7} roughness={0.2} />
         </Box>
         {/* Door (Circular) - at front */}
-        <Cylinder args={[w * 0.32, w * 0.32, 0.012, 32]} position={[0, -h * 0.15, d / 2 + 0.006]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <Box args={[w * 0.32, 0.012, w * 0.32]} position={[0, -h * 0.15, d / 2 + 0.006]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
-        </Cylinder>
+        </Box>
         {/* Lint Filter - visible at top of door */}
         <Box args={[w * 0.45, 0.008, 0.015]} position={[0, h * 0.12, d / 2 + 0.008]} castShadow>
           <meshStandardMaterial color="#94a3b8" metalness={0.6} roughness={0.4} />
@@ -372,8 +370,19 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
     );
   }
 
-  // Sink - improved realistic model
+  // Sink - improved realistic model with proper faucet using TubeGeometry
   if (type === 'sink') {
+    // Create faucet curve using CatmullRomCurve3
+    const faucetCurve = useMemo(() => {
+      const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.01, -d * 0.25),   // Base
+        new THREE.Vector3(0, 0.09, -d * 0.25),   // Start curve up
+        new THREE.Vector3(0, 0.11, -d * 0.10),   // Curve over basin
+        new THREE.Vector3(0, 0.08, d * 0.02),    // End over basin
+      ]);
+      return curve;
+    }, [d]);
+
     return (
       <group position={[0, h / 2 + 0.01, 0]}>
         {/* Sink Countertop - stone/granite look */}
@@ -389,21 +398,25 @@ export const Appliance3D: React.FC<Appliance3DProps> = ({
           <meshStandardMaterial color="#94a3b8" metalness={0.7} roughness={0.3} />
         </Box>
         {/* Drain - at bottom center */}
-        <Cylinder args={[0.025, 0.03, 0.005, 16]} position={[0, -h / 2 - 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
+        <Box args={[0.025, 0.005, 0.03]} position={[0, -h / 2 - 0.01, 0]} rotation={[Math.PI / 2, 0, 0]} castShadow>
           <meshStandardMaterial color="#334155" metalness={0.9} roughness={0.2} />
-        </Cylinder>
-        {/* Faucet Base - at back of sink */}
-        <Cylinder args={[0.022, 0.025, 0.08, 16]} position={[0, 0.01, -d * 0.25]} castShadow>
+        </Box>
+        
+        {/* Faucet using TubeGeometry - connected from base to aerator */}
+        <mesh castShadow>
+          <tubeGeometry args={[faucetCurve, 20, 0.012, 8, false]} />
           <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.1} />
-        </Cylinder>
-        {/* Faucet Spout - curved */}
-        <Cylinder args={[0.012, 0.012, 0.12, 16]} position={[0, 0.08, -d * 0.15]} rotation={[0.5, 0, 0]} castShadow>
-          <meshStandardMaterial color="#e2e8f0" metalness={0.9} roughness={0.1} />
-        </Cylinder>
-        {/* Faucet Aerator */}
-        <Sphere args={[0.01, 16, 16]} position={[0, 0.08, d * 0.15]} castShadow>
-          <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
-        </Sphere>
+        </mesh>
+        
+        {/* Faucet Aerator - at the exact end of the curve */}
+        {(() => {
+          const endPoint = faucetCurve.getPoint(1);
+          return (
+            <Sphere args={[0.01, 16, 16]} position={[endPoint.x, endPoint.y, endPoint.z]} castShadow>
+              <meshStandardMaterial color="#cbd5e1" metalness={0.8} roughness={0.2} />
+            </Sphere>
+          );
+        })()}
       </group>
     );
   }
