@@ -10,7 +10,7 @@ import { SplashLoader } from '../SplashLoader';
 
 
 export const KitchenCanvas = () => {
-  const { units, selectElement, room, activeTool, setActiveTool, addRoomObstacle, addRoomFixture, addRoomPolygonPoint, displayUnit, duplicateElement, toggleElementVisibility, isSnappingEnabled } = useProjectStore();
+  const { units, selectElement, room, activeTool, setActiveTool, addRoomObstacle, addRoomFixture, addRoomPolygonPoint, displayUnit, duplicateElement, toggleElementVisibility, isSnappingEnabled, visibleWalls, roomPolygonPoints } = useProjectStore();
   const { historyVisible } = useProjectStore();
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -302,19 +302,56 @@ export const KitchenCanvas = () => {
               fill="rgba(39, 39, 42, 0.3)" 
             />
             
-            {/* Walls */}
-            <Line
-              points={[
-                0, 0, 
-                room.widthMm * SCALE, 0, 
-                room.widthMm * SCALE, room.lengthMm * SCALE, 
-                0, room.lengthMm * SCALE, 
-                0, 0
-              ]}
-              stroke="#10b981"
-              strokeWidth={4}
-              closed
-            />
+            {/* Walls - with visibility control */}
+            {visibleWalls.back && (
+              <Line
+                points={[0, 0, room.widthMm * SCALE, 0]}
+                stroke="#10b981"
+                strokeWidth={4}
+              />
+            )}
+            {visibleWalls.right && (
+              <Line
+                points={[room.widthMm * SCALE, 0, room.widthMm * SCALE, room.lengthMm * SCALE]}
+                stroke="#10b981"
+                strokeWidth={4}
+              />
+            )}
+            {visibleWalls.front && (
+              <Line
+                points={[room.widthMm * SCALE, room.lengthMm * SCALE, 0, room.lengthMm * SCALE]}
+                stroke="#10b981"
+                strokeWidth={4}
+              />
+            )}
+            {visibleWalls.left && (
+              <Line
+                points={[0, room.lengthMm * SCALE, 0, 0]}
+                stroke="#10b981"
+                strokeWidth={4}
+              />
+            )}
+
+            {/* Polygon Points (for custom room shape) */}
+            {roomPolygonPoints.map((point, idx) => (
+              <Circle
+                key={`poly-${idx}`}
+                x={point.xMm * SCALE}
+                y={point.yMm * SCALE}
+                radius={6}
+                fill="#f59e0b"
+                stroke="#ffffff"
+                strokeWidth={2}
+              />
+            ))}
+            {roomPolygonPoints.length > 1 && (
+              <Line
+                points={roomPolygonPoints.flatMap(p => [p.xMm * SCALE, p.yMm * SCALE])}
+                stroke="#f59e0b"
+                strokeWidth={2}
+                dash={[5, 5]}
+              />
+            )}
 
             {/* Obstacles (Columns) */}
             {room.obstacles.map(obs => {
