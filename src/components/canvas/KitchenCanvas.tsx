@@ -10,7 +10,7 @@ import { SplashLoader } from '../SplashLoader';
 
 
 export const KitchenCanvas = () => {
-  const { units, selectElement, room, activeTool, setActiveTool, addRoomObstacle, addRoomFixture, displayUnit, duplicateElement, toggleElementVisibility, isSnappingEnabled } = useProjectStore();
+  const { units, selectElement, room, activeTool, setActiveTool, addRoomObstacle, addRoomFixture, addRoomPolygonPoint, displayUnit, duplicateElement, toggleElementVisibility, isSnappingEnabled } = useProjectStore();
   const { historyVisible } = useProjectStore();
   const stageRef = useRef<Konva.Stage>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -204,6 +204,10 @@ export const KitchenCanvas = () => {
       // Default window width 1200mm
       addRoomFixture('window', xMm, yMm, 1200);
       setActiveTool('select');
+    }
+    else if (activeTool === 'polygon') {
+      // Add point to room polygon
+      addRoomPolygonPoint({ xMm, yMm });
     }
   };
 

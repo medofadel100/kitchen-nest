@@ -73,6 +73,7 @@ export const ToolsSidebar = () => {
     { type: 'column', label: 'إضافة عمود / بروز', icon: Square, color: 'text-red-400' },
     { type: 'door', label: 'إضافة باب', icon: DoorOpen, color: 'text-sky-400' },
     { type: 'window', label: 'إضافة شباك', icon: LayoutGrid, color: 'text-sky-400' },
+    { type: 'polygon', label: 'رسم الغرفة', icon: Square, color: 'text-orange-400' },
   ];
 
   return (
@@ -146,6 +147,35 @@ export const ToolsSidebar = () => {
             إظهار كل المخفي
           </span>
         </button>
+
+        {/* Wall Visibility Controls */}
+        <div className="mt-4">
+          <h3 className="text-xs font-bold text-zinc-500 mb-2">إظهار الجدران</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { key: 'back', label: 'الخلفية' },
+              { key: 'left', label: 'اليسار' },
+              { key: 'front', label: 'الأمام' },
+              { key: 'right', label: 'اليمين' },
+            ].map((wall) => {
+              const { visibleWalls, setVisibleWalls } = useProjectStore.getState();
+              const isVisible = visibleWalls?.[wall.key as keyof typeof visibleWalls] ?? true;
+              return (
+                <button
+                  key={wall.key}
+                  onClick={() => setVisibleWalls({ [wall.key]: !isVisible } as any)}
+                  className={`p-2 rounded-lg border text-xs font-bold transition-all ${
+                    isVisible
+                      ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
+                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800'
+                  }`}
+                >
+                  {wall.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
