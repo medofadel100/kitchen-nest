@@ -21,8 +21,10 @@ type Snapshot = {
   selectedElements: Array<{ id: string; type: 'unit' | 'fixture' | 'obstacle' }>;
   selectedUnitId: string | null;
   displayUnit: 'mm' | 'cm' | 'm';
-  activeTool: 'select' | 'door' | 'window' | 'column' | 'measure';
+  activeTool: 'select' | 'door' | 'window' | 'column' | 'measure' | 'polygon';
   isSnappingEnabled: boolean;
+  visibleWalls: { back: boolean; left: boolean; front: boolean; right: boolean };
+  roomPolygonPoints: { xMm: number; yMm: number }[]; // For drawing custom room shapes
 };
 
 export const getDefaultColorForUnitType = (type: UnitType, settings: ProjectSettings): string => {
@@ -94,8 +96,13 @@ type ProjectState = {
 
   // UI
   displayUnit: 'mm' | 'cm' | 'm';
-  activeTool: 'select' | 'door' | 'window' | 'column' | 'measure';
+  activeTool: 'select' | 'door' | 'window' | 'column' | 'measure' | 'polygon';
   isSnappingEnabled: boolean;
+  visibleWalls: { back: boolean; left: boolean; front: boolean; right: boolean };
+  roomPolygonPoints: { xMm: number; yMm: number }[];
+  setVisibleWalls: (walls: { back?: boolean; left?: boolean; front?: boolean; right?: boolean }) => void;
+  setRoomPolygonPoints: (points: { xMm: number; yMm: number }[]) => void;
+  addRoomPolygonPoint: (point: { xMm: number; yMm: number }) => void;
 
   // Unit Actions
   addUnit: (type: UnitType, xMm: number, yMm: number) => void;
@@ -127,7 +134,7 @@ type ProjectState = {
   // UI
   selectElement: (id: string | null, type?: 'unit' | 'fixture' | 'obstacle', multi?: boolean) => void;
   setDisplayUnit: (unit: 'mm' | 'cm' | 'm') => void;
-  setActiveTool: (tool: 'select' | 'door' | 'window' | 'column' | 'measure') => void;
+  setActiveTool: (tool: 'select' | 'door' | 'window' | 'column' | 'measure' | 'polygon') => void;
   toggleSnapping: () => void;
 
   // Context Menu
@@ -159,6 +166,8 @@ export const useProjectStore = create<ProjectState>()(
         displayUnit: state.displayUnit,
         activeTool: state.activeTool,
         isSnappingEnabled: state.isSnappingEnabled,
+        visibleWalls: state.visibleWalls,
+        roomPolygonPoints: state.roomPolygonPoints,
       });
 
       const HISTORY_MAX = 20;
@@ -425,6 +434,17 @@ export const useProjectStore = create<ProjectState>()(
         displayUnit: 'm',
         activeTool: 'select',
         isSnappingEnabled: true,
+        visibleWalls: { back: true, left: true, front: true, right: true },
+        roomPolygonPoints: [],
+        setVisibleWalls: (walls) =>
+          set((state) => ({
+            visibleWalls: { ...state.visibleWalls, ...walls },
+          })),
+        setRoomPolygonPoints: (points) => set({ roomPolygonPoints: points }),
+        addRoomPolygonPoint: (point) =>
+          set((state) => ({
+            roomPolygonPoints: [...state.roomPolygonPoints, point],
+          })),
 
         addUnit: (type, xMm, yMm) =>
           set((state) => {
