@@ -129,6 +129,7 @@ type ProjectState = {
   updateRoomObstacle: (id: string, updates: Partial<StructuralObstacle>) => void;
   deleteRoomObstacle: (id: string) => void;
 
+  updateRoomDetails: (id: string, updates: Partial<Room>) => void;
   completeRoomSetup: () => void;
 
   // UI
@@ -714,6 +715,15 @@ export const useProjectStore = create<ProjectState>()(
               room: { ...state.room, obstacles: state.room.obstacles.filter((o) => !idsToDelete.includes(o.id)) },
               selectedElements: newSelectedElements,
               selectedElement: newSelectedElements.length > 0 ? newSelectedElements[newSelectedElements.length - 1] : null,
+            };
+          }),
+
+        updateRoomDetails: (id, updates) =>
+          set((state) => {
+            if (!state.room) return state;
+            get().commitSnapshot();
+            return {
+              room: { ...state.room, ...updates },
             };
           }),
 

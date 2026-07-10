@@ -211,7 +211,10 @@ export const KitchenCanvas = () => {
         const firstPoint = roomPolygonPoints[0];
         const dist = Math.hypot(xMm - firstPoint.xMm, yMm - firstPoint.yMm);
         if (dist < 50) {
-          // Close the shape - clear points and exit polygon mode
+          // Close the shape - update room polygon and exit polygon mode
+          if (room) {
+            useProjectStore.getState().updateRoomDetails(room.id, { polygonMm: roomPolygonPoints });
+          }
           setRoomPolygonPoints([]);
           setActiveTool('select');
           return;
@@ -222,12 +225,15 @@ export const KitchenCanvas = () => {
     }
   };
 
-  // Function to clear polygon points
+  // Function to set polygon points (for closing the shape)
   const setRoomPolygonPoints = (points: { xMm: number; yMm: number }[]) => {
     useProjectStore.setState((state) => ({
       roomPolygonPoints: points,
     }));
   };
+
+  // Use room's polygonMm if available, otherwise use roomPolygonPoints
+  const displayPolygonPoints = room && room.polygonMm && room.polygonMm.length > 0 ? room.polygonMm : roomPolygonPoints;
 
   const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     if (activeTool === 'measure' && measureStart) {
