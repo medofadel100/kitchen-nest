@@ -282,9 +282,29 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                 </group>
               ) : (
                 <>
-                  <Box args={[w, h, d]} castShadow receiveShadow>
-                    <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
-                  </Box>
+                  {/* Hollow Carcass - built from 5 panels like corner units */}
+                  <group>
+                    {/* Left Side Panel */}
+                    <Box args={[0.018, h, d]} position={[-w/2 + 0.009, 0, 0]} castShadow receiveShadow>
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                    </Box>
+                    {/* Right Side Panel */}
+                    <Box args={[0.018, h, d]} position={[w/2 - 0.009, 0, 0]} castShadow receiveShadow>
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                    </Box>
+                    {/* Top Panel */}
+                    <Box args={[w - 0.036, 0.018, d]} position={[0, h/2 - 0.009, 0]} castShadow receiveShadow>
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                    </Box>
+                    {/* Bottom Panel */}
+                    <Box args={[w - 0.036, 0.018, d]} position={[0, -h/2 + 0.009, 0]} castShadow receiveShadow>
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                    </Box>
+                    {/* Back Panel */}
+                    <Box args={[w - 0.036, h - 0.036, 0.018]} position={[0, 0, -d/2 + 0.009]} castShadow receiveShadow>
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                    </Box>
+                  </group>
                   <Box args={[w, h, d]}>
                     <meshBasicMaterial color={isSelected ? '#000000' : '#ffffff'} wireframe />
                   </Box>
@@ -481,11 +501,11 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                     return (
                       <group key={`hinge-${hi}`}>
                         {/* Hinge leaf (carcass side) */}
-                        <Box args={[0.008, 0.022, 0.014]} position={[side * (doorW/2 - 0.001), hingeY, frontZ - doorT/2]} castShadow>
+                        <Box args={[0.008, 0.022, 0.014]} position={[side * (doorW/2 - 0.001), hingeY, doorT/2 - 0.007]} castShadow>
                           <meshStandardMaterial color="#78716c" metalness={0.7} roughness={0.3} />
                         </Box>
                         {/* Hinge pin (cylinder) */}
-                        <group position={[side * doorW/2, hingeY, frontZ - doorT/2]} rotation={[0, 0, Math.PI/2]}>
+                        <group position={[side * doorW/2, hingeY, doorT/2 - 0.007]} rotation={[0, 0, Math.PI/2]}>
                           <mesh castShadow>
                             <cylinderGeometry args={[0.003, 0.003, 0.022, 8]} />
                             <meshStandardMaterial color="#a8a29e" metalness={0.9} roughness={0.1} />
@@ -493,7 +513,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                         </group>
                         {/* Hinge leaf (door side) - visible when open */}
                         {unit._3dDoorOpen && (
-                          <mesh position={[side * (doorW/2 + 0.004), hingeY, frontZ - doorT/2 + 0.01]} rotation={[0, side * 1.2, 0]} castShadow>
+                          <mesh position={[side * (doorW/2 + 0.004), hingeY, doorT/2 - 0.007 + 0.01]} rotation={[0, side * 1.2, 0]} castShadow>
                             <boxGeometry args={[0.006, 0.018, 0.014]} />
                             <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
                           </mesh>
