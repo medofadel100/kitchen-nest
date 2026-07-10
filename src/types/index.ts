@@ -30,7 +30,7 @@ export interface Material {
   supplierName?: string;       // اسم المورد - يدخله صاحب الورشة
   supplierContact?: string;
   standardSheet: StandardSheetSize;
-  // السعر يبقى "افتراضي / تقديري" لحد ما صاحب الورشة يعدله بسعره الحقيقي
+  // السعر يبقى "افتراضي / تقديري" لحد ما صاحب الورشة يعدل بسعره الحقيقي
   pricePerSheet: number;       // جنيه للوح الكامل
   edgeBandingPricePerMeter?: number; // سعر شريط الحرف بالمتر الطولي
   hasGrainDirection?: boolean; // هل للخامة اتجاه عرق خشب يجب الحفاظ عليه في التقطيع؟
@@ -53,7 +53,9 @@ export type UnitType =
   | "corner_tall" // وحدة ركن طولية
   | "island"      // جزيرة
   | "drawer_unit" // وحدة أدراج
-  | "loft";       // وحدة قلاب/مستوى ثاني علوي
+  | "loft"        // وحدة قلاب/مستوى ثاني علوي
+  | "pantry_pullout" // وحدة مخزن طويلة بالسحاب
+  | "open_shelf";    // وحدة مفتوحة
 
 export interface UnitDimensions {
   widthMm: number;
@@ -77,9 +79,11 @@ export const DEFAULT_UNIT_DIMENSIONS: Record<UnitType, UnitDimensions> = {
   island: { widthMm: 1200, depthMm: 900, heightMm: 850 },
   drawer_unit: { widthMm: 600, depthMm: 600, heightMm: 850 },
   loft: { widthMm: 600, depthMm: 320, heightMm: 400 },
+  pantry_pullout: { widthMm: 600, depthMm: 600, heightMm: 2100 },
+  open_shelf: { widthMm: 600, depthMm: 320, heightMm: 700 },
 };
 
-export type CornerDoorStyle = "diagonal_single" | "bifold_lazy_susan" | "none";
+export type CornerDoorStyle = "diagonal_single" | "bifold_lazy_susan" | "lift_up" | "none";
 export type CornerInternalSolution = "fixed_shelf" | "lazy_susan_2tier" | "magic_corner_pullout" | "none";
 
 export interface CornerUnitConfig {
@@ -147,6 +151,11 @@ export interface KitchenUnit {
   // حالة الفتح للعرض 3D (ليست للتخزين)
   _3dDoorOpen?: boolean;       // هل الأبواب مفتوحة حالياً؟
   _3dDrawerOpen?: boolean;     // هل الأدراج مفتوحة حالياً؟
+  // خصائص خاصة بوحدة الحوض
+  isSinkBase?: boolean;        // وحدة الحوض - بدون أرفف داخلية ومقصي الظهر
+  sinkConfig?: {
+    hasFalseDrawer?: boolean;  // هل يوجد درج وهمي فوق الباب؟
+  };
 }
 
 // ---------- عناصر ثابتة في الفراغ (Room Fixtures & Structure) ----------
@@ -284,6 +293,31 @@ export interface FaucetOption {
   isPricePlaceholder: boolean;
 }
 
+// Filler Panel - لملء الفراغات الصغيرة
+export interface FillerPanel {
+  id: string;
+  parentUnitId: string; // الوحدة اللي جنبها
+  widthMm: number; // عادة صغير 20-100مم
+  heightMm: number;
+  materialId: string; // خامة الأبواب عادة
+}
+
+// End Panel - لوح نهاية الوحدة
+export interface EndPanel {
+  id: string;
+  parentUnitId: string;
+  heightMm: number;
+  depthMm: number;
+  materialId: string; // خامة الأبواب - مهم جدًا
+}
+
+// Pull-out Pantry Configuration
+export interface PulloutConfig {
+  basketCount: number; // عادة 4-6 سلال
+  basketType: "wire" | "solid";
+  hardwareCost: number; // زي الـ lazy susan بالظبط، ده هاردوير جاهز مش خامة
+}
+
 export interface KitchenProject {
   id: string;
   projectName: string;
@@ -312,6 +346,10 @@ export interface KitchenProject {
   // بيانات مادية وجدولة
   deliveryDate?: string; // تاريخ التسليم المتوقع
   payments: Payment[]; // جدول الدفعات
+
+  // Filler panels and end panels
+  fillerPanels?: FillerPanel[];
+  endPanels?: EndPanel[];
 }
 
 // ---------- التسعير (Pricing) ----------

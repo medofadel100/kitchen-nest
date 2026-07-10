@@ -11,6 +11,75 @@ function basicCarcassPieces(unit: KitchenUnit, label: string): CutPiece[] {
   const colorHex = unit.colorHex || '#D4B896';
   const pieces: CutPiece[] = [];
 
+  // Handle sink base unit - no shelves, cut back panel for plumbing
+  if (unit.isSinkBase) {
+    // جانبين (يمين ويسار) - بعمق الوحدة وارتفاعها
+    pieces.push({
+      id: `${unit.id}_side_left`,
+      widthMm: depthMm,
+      heightMm: heightMm,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - جانب شمال`,
+      canRotate: true,
+      edgesToBind: ["left", "bottom"],
+    });
+    pieces.push({
+      id: `${unit.id}_side_right`,
+      widthMm: depthMm,
+      heightMm: heightMm,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - جانب يمين`,
+      canRotate: true,
+      edgesToBind: ["left", "bottom"],
+    });
+
+    // قاعدة وسقف (بعرض الوحدة مطروح منه سمك الجانبين)
+    const innerWidth = widthMm - 2 * PANEL_THICKNESS_MM;
+    pieces.push({
+      id: `${unit.id}_base`,
+      widthMm: innerWidth,
+      heightMm: depthMm,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - قاعدة`,
+      canRotate: true,
+      edgesToBind: ["bottom"],
+    });
+    pieces.push({
+      id: `${unit.id}_top`,
+      widthMm: innerWidth,
+      heightMm: depthMm,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - سقف`,
+      canRotate: true,
+      edgesToBind: ["bottom"],
+    });
+
+    // ظهر مقطوع (نصف الارتفاع فقط لمرور المواسير)
+    const backHeight = Math.round(heightMm * 0.6);
+    pieces.push({
+      id: `${unit.id}_back`,
+      widthMm: innerWidth,
+      heightMm: backHeight,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - ظهر (مقطوع)`,
+      canRotate: true,
+      edgesToBind: [],
+    });
+
+    // ⛔ لا أرفف داخلية في وحدة الحوض
+    return pieces;
+  }
+
   // جانبين (يمين ويسار) - بعمق الوحدة وارتفاعها
   pieces.push({
     id: `${unit.id}_side_left`,
@@ -274,6 +343,8 @@ function unitTypeLabelAr(type: UnitType): string {
     island: "جزيرة",
     drawer_unit: "أدراج",
     loft: "قلاب",
+    pantry_pullout: "مخزن سحب",
+    open_shelf: "رف مفتوح",
   };
   return unitTypeLabels[type];
 }
