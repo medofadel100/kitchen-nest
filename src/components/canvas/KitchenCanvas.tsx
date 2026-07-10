@@ -206,9 +206,27 @@ export const KitchenCanvas = () => {
       setActiveTool('select');
     }
     else if (activeTool === 'polygon') {
+      // Check if clicking on the first point to close the shape
+      if (roomPolygonPoints.length > 0) {
+        const firstPoint = roomPolygonPoints[0];
+        const dist = Math.hypot(xMm - firstPoint.xMm, yMm - firstPoint.yMm);
+        if (dist < 50) {
+          // Close the shape - clear points and exit polygon mode
+          setRoomPolygonPoints([]);
+          setActiveTool('select');
+          return;
+        }
+      }
       // Add point to room polygon
       addRoomPolygonPoint({ xMm, yMm });
     }
+  };
+
+  // Function to clear polygon points
+  const setRoomPolygonPoints = (points: { xMm: number; yMm: number }[]) => {
+    useProjectStore.setState((state) => ({
+      roomPolygonPoints: points,
+    }));
   };
 
   const handleStageMouseMove = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
