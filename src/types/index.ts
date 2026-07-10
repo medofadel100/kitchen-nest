@@ -200,6 +200,36 @@ export interface Room {
   obstacles: StructuralObstacle[];
 }
 
+// ---------- Custom 3D Models ----------
+
+export type ModelCategory = 'units' | 'doors' | 'materials' | 'accessories' | 'appliances';
+
+export interface ModelPiece3D {
+  id: string;
+  shape: 'box' | 'cylinder' | 'sphere' | 'plane';
+  widthMm?: number;
+  heightMm?: number;
+  depthMm?: number;
+  radiusMm?: number;
+  position: { xMm: number; yMm: number; zMm: number };
+  rotation: { xDeg: number; yDeg: number; zDeg: number };
+  colorHex: string;
+  materialId?: string;
+}
+
+export interface CustomModel {
+  id: string;
+  nameAr: string;
+  nameEn?: string;
+  category: ModelCategory;
+  pieces: ModelPiece3D[];
+  tags?: string[];
+  isPublic?: boolean;
+  workshopId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ---------- الأجهزة الكهربائية (Appliances) ----------
 
 export interface Appliance {
