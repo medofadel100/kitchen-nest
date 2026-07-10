@@ -3,16 +3,14 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { Lock, Mail, User, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { Lock, Mail, AlertCircle, ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
-  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [workshopName, setWorkshopName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -26,32 +24,12 @@ export default function LoginPage() {
 
     try {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence);
-
-      if (isLogin) {
-        await signInWithEmailAndPassword(auth, email, password);
-        router.push('/');
-      } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-        
-        // Create workshop profile in Firestore
-        await setDoc(doc(db, 'workshops', user.uid), {
-          ownerId: user.uid,
-          name: workshopName || 'ورشة جديدة',
-          email: user.email,
-          createdAt: new Date().toISOString(),
-        });
-
-        router.push('/');
-      }
+      await signInWithEmailAndPassword(auth, email, password);
+      router.push('/');
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/invalid-credential') {
         setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.');
-      } else if (err.code === 'auth/email-already-in-use') {
-        setError('هذا البريد الإلكتروني مسجل بالفعل.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('كلمة المرور ضعيفة، يجب أن تكون 6 أحرف على الأقل.');
       } else {
         setError('حدث خطأ أثناء الاتصال بالخادم. حاول مرة أخرى.');
       }
@@ -124,28 +102,6 @@ export default function LoginPage() {
         </AnimatePresence>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {!isLogin && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-            >
-              <label className="block text-xs font-bold text-zinc-400 mb-1.5">اسم الورشة</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-zinc-500">
-                  <User size={18} />
-                </div>
-                <input 
-                  type="text" 
-                  required={!isLogin}
-                  value={workshopName}
-                  onChange={(e) => setWorkshopName(e.target.value)}
-                  className="w-full bg-zinc-950/50 border border-zinc-800 rounded-xl py-3 pr-11 pl-4 text-white focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all placeholder:text-zinc-600"
-                  placeholder="مثال: ورشة الإبداع"
-                />
-              </div>
-            </motion.div>
-          )}
-
           <div>
             <label className="block text-xs font-bold text-zinc-400 mb-1.5">البريد الإلكتروني</label>
             <div className="relative">
@@ -211,7 +167,7 @@ export default function LoginPage() {
               <div className="w-6 h-6 border-2 border-emerald-950 border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <>
-                {isLogin ? 'دخول للنظام' : 'إنشاء حساب'}
+                دخول للنظام
                 <ArrowRight size={20} className="rotate-180" />
               </>
             )}
@@ -244,14 +200,39 @@ export default function LoginPage() {
           </button>
         </div>
 
-        <div className="mt-8 text-center border-t border-zinc-800/80 pt-6">
-          <p className="text-zinc-500 text-sm">
-            {isLogin ? "ليس لديك حساب للورشة؟" : "لديك حساب بالفعل؟"}
+        <div className="mt-6 space-y-3">
+          {/* Demo Button - Primary CTA */}
+          <button 
+            type="button"
+            onClick={() => router.push('/demo-register')}
+            disabled={loading}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-3.5 rounded-xl font-bold text-base hover:from-emerald-400 hover:to-teal-400 transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            جرب النظام مجاناً (Demo)
+          </button>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-800"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-zinc-900/80 px-2 text-zinc-500">أو</span>
+            </div>
+          </div>
+
+          {/* Regular Login Toggle - Hidden for demo only */}
+          <p className="text-zinc-500 text-sm text-center">
+            لديك حساب بالفعل؟
             <button 
-              onClick={() => { setIsLogin(!isLogin); setError(''); }}
+              type="button"
+              onClick={() => router.push('/login')}
               className="text-emerald-400 font-bold mr-2 hover:text-emerald-300 transition-colors"
             >
-              {isLogin ? 'سجل ورشتك الآن' : 'تسجيل الدخول'}
+              تسجيل الدخول
             </button>
           </p>
         </div>
