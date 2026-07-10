@@ -187,32 +187,49 @@ function calculateNestingWithStrategy(pieces: CutPiece[], material: Material, st
 }
 
 export function nestPiecesForMaterial(pieces: CutPiece[], material: Material): NestingResult {
-  let bestResult: NestingResult | null = null;
+  // Ensure we never mix different colors on the same sheet: split pieces by colorId first
+  const groups: Record<string, CutPiece[]> = {};
+  for (const p of pieces) {
+    const cid = p.colorId || 'default';
+    if (!groups[cid]) groups[cid] = [];
+    groups[cid].push(p);
+  }
 
-  // نجرب كل استراتيجيات الترتيب ونختار الأقل في عدد الألواح ثم الأعلى استغلالًا
-  for (const strategy of STRATEGIES) {
-    const result = calculateNestingWithStrategy(pieces, material, strategy);
-    
-    if (!bestResult) {
-      bestResult = result;
-      continue;
+  const combinedSheets: NestingSheetResult[] = [];
+  let combinedUnplaced: CutPiece[] = [];
+
+  for (const [colorId, groupPieces] of Object.entries(groups)) {
+    let bestResult: NestingResult | null = null;
+
+    // Try all strategies for this color group
+    for (const strategy of STRATEGIES) {
+      const result = calculateNestingWithStrategy(groupPieces, material, strategy);
+      if (!bestResult) {
+        bestResult = result;
+        continue;
+      }
+
+      const currentSheetsCount = result.sheets.length;
+      const bestSheetsCount = bestResult.sheets.length;
+      if (currentSheetsCount < bestSheetsCount) {
+        bestResult = result;
+      } else if (currentSheetsCount === bestSheetsCount) {
+        const currentAvgUtil = result.sheets.reduce((sum, s) => sum + s.utilizationPercent, 0) / (currentSheetsCount || 1);
+        const bestAvgUtil = bestResult.sheets.reduce((sum, s) => sum + s.utilizationPercent, 0) / (bestSheetsCount || 1);
+        if (currentAvgUtil > bestAvgUtil) bestResult = result;
+      }
     }
 
-    const currentSheetsCount = result.sheets.length;
-    const bestSheetsCount = bestResult.sheets.length;
-
-    if (currentSheetsCount < bestSheetsCount) {
-      bestResult = result;
-    } else if (currentSheetsCount === bestSheetsCount) {
-      // Tie breaker: Average utilization
-      const currentAvgUtil = result.sheets.reduce((sum, s) => sum + s.utilizationPercent, 0) / currentSheetsCount || 0;
-      const bestAvgUtil = bestResult.sheets.reduce((sum, s) => sum + s.utilizationPercent, 0) / bestSheetsCount || 0;
-      
-      if (currentAvgUtil > bestAvgUtil) {
-        bestResult = result;
-      }
+    if (bestResult) {
+      // Append sheets for this color group, keeping their color metadata
+      combinedSheets.push(...bestResult.sheets);
+      if (bestResult.unplacedPieces && bestResult.unplacedPieces.length > 0) combinedUnplaced.push(...bestResult.unplacedPieces);
     }
   }
 
-  return bestResult!;
+  return {
+    materialId: material.id,
+    sheets: combinedSheets,
+    unplacedPieces: combinedUnplaced,
+  };
 }

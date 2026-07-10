@@ -38,10 +38,30 @@ export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintPr
                 {/* Header */}
                 <div className="flex justify-between items-start border-b-2 border-zinc-300 pb-4 mb-6">
                   <div>
-                    <h1 className="text-2xl font-black mb-1">لوح التقطيع (Cutting Sheet)</h1>
-                    <p className="text-zinc-600 font-bold text-lg">{detail.material.nameAr}</p>
-                    <p className="text-sm text-zinc-500">مشروع: {project.projectName}</p>
-                  </div>
+                      <h1 className="text-2xl font-black mb-1">لوح التقطيع (Cutting Sheet)</h1>
+                      <p className="text-zinc-600 font-bold text-lg">{detail.material.nameAr}</p>
+                      <p className="text-sm text-zinc-500">مشروع: {project.projectName}</p>
+                      {/* Show sheet color info */}
+                      <p className="text-sm text-zinc-500 mt-1 flex items-center gap-2">
+                        <strong className="text-zinc-700">اللون:</strong>
+                        {sheet.colorId && sheet.colorId !== 'default' ? (
+                          (() => {
+                            const colorObj = detail.material.availableColors?.find(c => c.id === sheet.colorId);
+                            return (
+                              <span className="inline-flex items-center gap-2">
+                                <span className="inline-block h-4 w-8 rounded" style={{ backgroundColor: sheet.colorHex }} />
+                                <span>{colorObj?.nameAr || sheet.colorId}</span>
+                              </span>
+                            );
+                          })()
+                        ) : (
+                          <span className="inline-flex items-center gap-2">
+                            <span className="inline-block h-4 w-8 rounded" style={{ backgroundColor: sheet.colorHex }} />
+                            <span>افتراضي</span>
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   <div className="text-left text-sm bg-zinc-100 p-3 rounded border border-zinc-200">
                     <p><strong>مقاس اللوح:</strong> {sheetW} × {sheetH} مم</p>
                     <p><strong>عدد القطع:</strong> {sheet.placedPieces.length} قطعة</p>

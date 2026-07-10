@@ -91,6 +91,33 @@ export interface CornerUnitConfig {
   hardwareCost: number;
 }
 
+// تكوين تقسيم الأبواب والفواصل الخشبية
+export type DoorDivisionStyle =
+  | "equal"          // تقسيم متساوي بدون فواصل (كل باب جنب التاني)
+  | "symmetrical"    // بابين متساويين في المنتصف + فواصل جانبية
+  | "asymmetric";    // توزيع حر
+
+export interface DoorConfig {
+  count: number;                  // عدد الضلف
+  divisionStyle: DoorDivisionStyle;
+  // تقسيم الضلف: زى (2+2) ولا (3) ولا (2+1)
+  // automatic: لو 4 ابواب و divisionStyle = symmetrical => 2+2 مع فاصل في النص
+  panelGroupSizes?: number[];     // مثال: [2, 2] = ضلفتين شمال + ضلفتين يمين, [3] = 3 ضلف متجاورة
+  dividerWidthMm?: number;        // عرض الفاصل الخشبي بين المجموعات (افتراضي 50مم)
+  dividerColorHex?: string;       // لون الفاصل
+}
+
+export type LedPlacement = "external_top" | "external_bottom" | "internal_top" | "internal_bottom" | "both";
+
+export interface LedConfig {
+  hasLed: boolean;
+  placement: LedPlacement;        // مكان الليد
+  externalLengthMm?: number;      // طول الليد الخارجي
+  internalLengthMm?: number;      // طول الليد الداخلي (داخل الرفوف)
+  colorHex?: string;              // لون الإضاءة (افتراضي أبيض دافئ #FFE4B5)
+  brightness?: number;            // شدة الإضاءة 0-1
+}
+
 export interface KitchenUnit {
   id: string;
   type: UnitType;
@@ -104,6 +131,7 @@ export interface KitchenUnit {
   doorColorHex?: string;       // لون الأبواب
   doorColorId?: string;        // ID لون الأبواب
   doorCount: number;
+  doorConfig?: DoorConfig;     // تفاصيل تقسيم الأبواب والفواصل
   drawerCount: number;
   shelfCount?: number;         // عدد الأرفف الداخلية
   hingesPerDoor?: number;      // عدد المفصلات في الباب الواحد
@@ -112,9 +140,13 @@ export interface KitchenUnit {
   handleCount?: number;        // عدد المقابض
   hasLedProfile?: boolean;     // هل تحتوي على بروفايل ليد؟
   ledProfileLengthMm?: number; // طول الليد بالملي
+  ledConfig?: LedConfig;       // إعدادات الليد المتقدمة
   cornerConfig?: CornerUnitConfig; // موجود فقط لو type = corner_base | corner_wall | tall مع corner
   accessoriesCostOverride?: number; // تكلفة إكسسوارات يدوية لو عايز يظبطها
   isHidden?: boolean;
+  // حالة الفتح للعرض 3D (ليست للتخزين)
+  _3dDoorOpen?: boolean;       // هل الأبواب مفتوحة حالياً؟
+  _3dDrawerOpen?: boolean;     // هل الأدراج مفتوحة حالياً؟
 }
 
 // ---------- عناصر ثابتة في الفراغ (Room Fixtures & Structure) ----------
@@ -202,6 +234,10 @@ export interface ProjectSettings {
   defaultWallColor: string;
   defaultTallColor: string;
   defaultLoftColor: string;
+  defaultBaseDoorColor?: string;
+  defaultWallDoorColor?: string;
+  defaultTallDoorColor?: string;
+  defaultLoftDoorColor?: string;
   defaultWallMaterialId?: string; // لو الوحدات العلوية خامة مختلفة
   defaultColorHex: string;
   defaultWallColorHex?: string; // لو الوحدات العلوية لون مختلف

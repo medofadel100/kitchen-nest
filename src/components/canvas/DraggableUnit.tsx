@@ -4,7 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Group, Rect, Text, Line, Transformer } from 'react-konva';
 import { KitchenUnit } from '@/types';
 import { useProjectStore } from '@/store/projectStore';
-import { getUnitBoundingBoxes, checkUnitCollision } from '@/utils/geometry';
+import { clampUnitToRoom, findSmartUnitPlacement, getUnitBoundingBoxes, snapUnitToNeighbors, snapUnitToRoom, snapValueToGrid, checkUnitCollision } from '@/utils/geometry';
 import Konva from 'konva';
 
 interface DraggableUnitProps {
@@ -50,33 +50,33 @@ export const DraggableUnit: React.FC<DraggableUnitProps> = ({ unit, onContextMen
   const yPx = unit.position.yMm * SCALE;
 
   const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const SNAP_THRESHOLD_MM = 50; 
-    const GRID_SNAP_MM = 10; 
+    // record history before mutation
+    useProjectStore.getState().commitSnapshot({
+      kind: 'move',
+      label: `Move ${unit.type}`,
+      elementType: 'unit',
+      elementId: unit.id,
+    });
+
+    const GRID_SNAP_MM = 10;
+    const SNAP_THRESHOLD_MM = 80;
 
     const newXPx = e.target.x();
     const newYPx = e.target.y();
-    
-    let newXMm = (newXPx - widthPx/2) / SCALE;
-    let newYMm = (newYPx - depthPx/2) / SCALE;
+    let newXMm = (newXPx - widthPx / 2) / SCALE;
+    let newYMm = (newYPx - depthPx / 2) / SCALE;
 
-    // Save old position in case of collision
     const oldXMm = unit.position.xMm;
     const oldYMm = unit.position.yMm;
-
-    // Get true bounding box of this unit to use for snapping bounds
     let currentRotation = unit.position.rotationDeg || 0;
 
-    // Auto-rotation for corner units when near room corners
     if (room && unit.type.startsWith('corner')) {
       const distTopLeft = Math.hypot(newXMm, newYMm);
       const distTopRight = Math.hypot(room.widthMm - newXMm, newYMm);
       const distBottomLeft = Math.hypot(newXMm, room.lengthMm - newYMm);
       const distBottomRight = Math.hypot(room.widthMm - newXMm, room.lengthMm - newYMm);
-      
       const minDist = Math.min(distTopLeft, distTopRight, distBottomLeft, distBottomRight);
-      
-      // If within 1.5 meters of a corner, snap rotation
-      if (minDist < 1500) { 
+      if (minDist < 1500) {
         if (minDist === distTopLeft) currentRotation = 0;
         else if (minDist === distTopRight) currentRotation = 90;
         else if (minDist === distBottomRight) currentRotation = 180;
@@ -84,114 +84,48 @@ export const DraggableUnit: React.FC<DraggableUnitProps> = ({ unit, onContextMen
       }
     }
 
-    const testUnit = { ...unit, position: { ...unit.position, rotationDeg: currentRotation as any } };
-    const myBoxes = getUnitBoundingBoxes(testUnit, newXMm, newYMm);
-    const myLeft = Math.min(...myBoxes.map(b => b.left));
-    const myRight = Math.max(...myBoxes.map(b => b.right));
-    const myTop = Math.min(...myBoxes.map(b => b.top));
-    const myBottom = Math.max(...myBoxes.map(b => b.bottom));
-
-    const unitWidth = myRight - myLeft;
-    const unitDepth = myBottom - myTop;
-
-    // Snapping logic (Grid)
     if (isSnappingEnabled) {
-      newXMm = Math.round(newXMm / GRID_SNAP_MM) * GRID_SNAP_MM;
-      newYMm = Math.round(newYMm / GRID_SNAP_MM) * GRID_SNAP_MM;
+      newXMm = snapValueToGrid(newXMm, GRID_SNAP_MM);
+      newYMm = snapValueToGrid(newYMm, GRID_SNAP_MM);
 
-      // Magnetic Snapping logic
-      let snappedX = false;
-      let snappedY = false;
-
-      // 1. Snap to other units
-      for (const other of units) {
-        if (other.id === unit.id) continue;
-        
-        // Only snap if they are on the same elevation
-        const z1 = unit.position.zMm || (unit.type.includes('wall') ? 1500 : (unit.type === 'loft' ? 2200 : 0));
-        const z2 = other.position.zMm || (other.type.includes('wall') ? 1500 : (other.type === 'loft' ? 2200 : 0));
-        const zOverlap = !(z1 + unit.dimensions.heightMm <= z2 || z1 >= z2 + other.dimensions.heightMm);
-        if (!zOverlap) continue;
-
-        const otherBoxes = getUnitBoundingBoxes(other);
-        
-        for (const otherBox of otherBoxes) {
-          const otherLeft = otherBox.left;
-          const otherRight = otherBox.right;
-          const otherTop = otherBox.top;
-          const otherBottom = otherBox.bottom;
-
-          // Snap X
-          if (!snappedX) {
-            if (Math.abs(myLeft - otherRight) < SNAP_THRESHOLD_MM) { newXMm += (otherRight - myLeft); snappedX = true; }
-            else if (Math.abs(myRight - otherLeft) < SNAP_THRESHOLD_MM) { newXMm += (otherLeft - myRight); snappedX = true; }
-            else if (Math.abs(myLeft - otherLeft) < SNAP_THRESHOLD_MM) { newXMm += (otherLeft - myLeft); snappedX = true; }
-            else if (Math.abs(myRight - otherRight) < SNAP_THRESHOLD_MM) { newXMm += (otherRight - myRight); snappedX = true; }
-          }
-
-          // Snap Y
-          if (!snappedY) {
-            if (Math.abs(myTop - otherBottom) < SNAP_THRESHOLD_MM) { newYMm += (otherBottom - myTop); snappedY = true; }
-            else if (Math.abs(myBottom - otherTop) < SNAP_THRESHOLD_MM) { newYMm += (otherTop - myBottom); snappedY = true; }
-            else if (Math.abs(myTop - otherTop) < SNAP_THRESHOLD_MM) { newYMm += (otherTop - myTop); snappedY = true; }
-            else if (Math.abs(myBottom - otherBottom) < SNAP_THRESHOLD_MM) { newYMm += (otherBottom - myBottom); snappedY = true; }
-          }
-        }
-      }
-
-      // Re-calculate myBoxes after object snap to use for wall snapping
-      const updatedBoxes = getUnitBoundingBoxes(unit, newXMm, newYMm);
-      const updatedLeft = Math.min(...updatedBoxes.map(b => b.left));
-      const updatedRight = Math.max(...updatedBoxes.map(b => b.right));
-      const updatedTop = Math.min(...updatedBoxes.map(b => b.top));
-      const updatedBottom = Math.max(...updatedBoxes.map(b => b.bottom));
-
-      // 2. Snap to Room Walls (highest priority for bounds)
       if (room) {
-        if (Math.abs(updatedLeft) < SNAP_THRESHOLD_MM) { newXMm += (0 - updatedLeft); }
-        if (Math.abs(updatedTop) < SNAP_THRESHOLD_MM) { newYMm += (0 - updatedTop); }
-        
-        if (Math.abs(updatedRight - room.widthMm) < SNAP_THRESHOLD_MM) {
-          newXMm += (room.widthMm - updatedRight);
-        }
-        if (Math.abs(updatedBottom - room.lengthMm) < SNAP_THRESHOLD_MM) {
-          newYMm += (room.lengthMm - updatedBottom);
-        }
+        const wallSnap = snapUnitToRoom(unit, newXMm, newYMm, room, SNAP_THRESHOLD_MM);
+        newXMm = wallSnap.xMm;
+        newYMm = wallSnap.yMm;
       }
+
+      const neighborSnap = snapUnitToNeighbors(unit, newXMm, newYMm, units, SNAP_THRESHOLD_MM);
+      newXMm = neighborSnap.xMm;
+      newYMm = neighborSnap.yMm;
     }
 
-    // Hard Boundary constraints
     if (room) {
-      const finalBoxes = getUnitBoundingBoxes(unit, newXMm, newYMm);
-      const finalLeft = Math.min(...finalBoxes.map(b => b.left));
-      const finalRight = Math.max(...finalBoxes.map(b => b.right));
-      const finalTop = Math.min(...finalBoxes.map(b => b.top));
-      const finalBottom = Math.max(...finalBoxes.map(b => b.bottom));
-
-      if (finalLeft < 0) newXMm += (0 - finalLeft);
-      if (finalTop < 0) newYMm += (0 - finalTop);
-      if (finalRight > room.widthMm) newXMm += (room.widthMm - finalRight);
-      if (finalBottom > room.lengthMm) newYMm += (room.lengthMm - finalBottom);
+      const clamped = clampUnitToRoom(unit, newXMm, newYMm, room);
+      newXMm = clamped.xMm;
+      newYMm = clamped.yMm;
     }
 
-    const finalTestUnit = { ...unit, position: { ...unit.position, rotationDeg: currentRotation as any } };
-    
-    // 3. Collision Avoidance Check
-    let hasCollision = checkUnitCollision(finalTestUnit, units, newXMm, newYMm);
+    const finalUnit = { ...unit, position: { ...unit.position, rotationDeg: currentRotation as any } };
+    const otherUnits = units.filter(u => u.id !== unit.id);
+    const collision = checkUnitCollision(finalUnit, otherUnits, newXMm, newYMm);
+    if (collision && room) {
+      const safePlacement = findSmartUnitPlacement(finalUnit, room, otherUnits, newXMm, newYMm, GRID_SNAP_MM, SNAP_THRESHOLD_MM);
+      newXMm = safePlacement.xMm;
+      newYMm = safePlacement.yMm;
+    }
 
-    if (hasCollision) {
-      // Revert to old position
+    const finalCollision = checkUnitCollision(finalUnit, otherUnits, newXMm, newYMm);
+    if (finalCollision) {
       newXMm = oldXMm;
       newYMm = oldYMm;
-      currentRotation = unit.position.rotationDeg || 0; // Revert rotation too
-      // Optional: Visual feedback could be added here (e.g. flashing red)
-      console.warn("Collision detected! Reverting position.");
+      currentRotation = unit.position.rotationDeg || 0;
+      e.target.position({ x: (newXMm * SCALE) + widthPx / 2, y: (newYMm * SCALE) + depthPx / 2 });
+      e.target.rotation(currentRotation);
+      return;
     }
 
     updateUnitPosition(unit.id, newXMm, newYMm, unit.position.zMm, currentRotation as any);
-
-    // إعادة العنصر لمكانه الـ snapped أو الـ reverted في الـ UI فوراً
-    e.target.position({ x: (newXMm * SCALE) + widthPx/2, y: (newYMm * SCALE) + depthPx/2 });
+    e.target.position({ x: (newXMm * SCALE) + widthPx / 2, y: (newYMm * SCALE) + depthPx / 2 });
     e.target.rotation(currentRotation);
   };
 
@@ -205,6 +139,13 @@ export const DraggableUnit: React.FC<DraggableUnitProps> = ({ unit, onContextMen
   }, [isSelected]);
 
   const handleTransformEnd = () => {
+    useProjectStore.getState().commitSnapshot({
+      kind: 'resize',
+      label: `Resize ${unit.type}`,
+      elementType: 'unit',
+      elementId: unit.id,
+    });
+
     const node = groupRef.current;
     if (!node) return;
 

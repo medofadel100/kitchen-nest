@@ -267,11 +267,86 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                 </>
               )}
               
-              {/* 3D Details: Doors, Drawers, Countertop */}
+               {/* LED Lighting Effect */}
+              {(() => {
+                const ledCfg = unit.ledConfig;
+                if (!ledCfg?.hasLed) return null;
+                const ledDetails: any[] = [];
+                const ledBrightness = ledCfg.brightness || 0.8;
+                const ledColor = new THREE.Color(ledCfg.colorHex || '#FFE4B5');
+                const ledIntensity = ledBrightness * 0.5; // Scale for scene lighting
+                
+                const addExternalLed = (posY: number, label: string) => {
+                  // A long thin emissive box at the front edge
+                  const extLen = (ledCfg.externalLengthMm || unit.dimensions.widthMm) * SCALE_3D;
+                  ledDetails.push(
+                    <group key={`led-ext-${label}`} position={[0, posY, d/2 + 0.002]}>
+                      <Box args={[extLen, 0.005, 0.008]}>
+                        <meshStandardMaterial 
+                          color={ledColor} 
+                          emissive={ledColor} 
+                          emissiveIntensity={ledBrightness * 0.8}
+                          transparent 
+                          opacity={0.9}
+                        />
+                      </Box>
+                      {/* Point light to illuminate the area */}
+                      <pointLight 
+                        position={[0, 0, 0.03]} 
+                        color={ledColor} 
+                        intensity={ledIntensity} 
+                        distance={0.5} 
+                        decay={2}
+                      />
+                    </group>
+                  );
+                };
+
+                const addInternalLed = (shelfIndex: number, posY: number) => {
+                  const intLen = (ledCfg.internalLengthMm || unit.dimensions.widthMm) / ((unit.shelfCount || 1)) * SCALE_3D;
+                  ledDetails.push(
+                    <group key={`led-int-${shelfIndex}`} position={[0, posY, -d/2 + 0.01]}>
+                      <Box args={[intLen, 0.005, 0.008]}>
+                        <meshStandardMaterial 
+                          color={ledColor}
+                          emissive={ledColor}
+                          emissiveIntensity={ledBrightness * 0.6}
+                          transparent
+                          opacity={0.7}
+                        />
+                      </Box>
+                    </group>
+                  );
+                };
+
+                const placement = ledCfg.placement || 'external_top';
+                if (placement === 'external_top' || placement === 'both') {
+                  addExternalLed(h/2 - 0.01, 'top');
+                }
+                if (placement === 'external_bottom' || placement === 'both') {
+                  addExternalLed(-h/2 + 0.01, 'bottom');
+                }
+                if (placement === 'internal_top' || placement === 'internal_bottom' || placement === 'both') {
+                  const shelfCnt = unit.shelfCount || 1;
+                  for (let s = 0; s < shelfCnt; s++) {
+                    const spacing = h / (shelfCnt + 1);
+                    const shelfY = -h/2 + spacing * (s + 1);
+                    if (placement === 'internal_top' || placement === 'both') {
+                      addInternalLed(s, shelfY + 0.01); // above shelf
+                    }
+                    if (placement === 'internal_bottom') {
+                      addInternalLed(s, shelfY - 0.01); // below shelf
+                    }
+                  }
+                }
+                return ledDetails;
+              })()}
+
+               {/* 3D Details: Doors, Drawers, Countertop */}
               {(() => {
                 if (isFridge || isOven) return null; // Skip doors/drawers/countertop for full appliances
 
-                const details = [];
+                const details: any[] = [];
                 const doorT = 0.018; // 18mm thickness
                 const frontZ = d / 2 + doorT / 2;
                 
@@ -310,40 +385,315 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                 let doorsYStart = -h/2 + (unit.type === 'base' || unit.type === 'tall' || unit.type === 'corner_base' || unit.type === 'corner_tall' ? 0.1 : 0); // Account for plinth
                 let doorsHeight = h - (unit.type === 'base' || unit.type === 'tall' || unit.type === 'corner_base' || unit.type === 'corner_tall' ? 0.1 : 0);
 
-                // Drawers
+                // Drawers with realistic open/close animation
                 if (unit.drawerCount && unit.drawerCount > 0) {
                   const actualDrawerH = unit.type === 'drawer_unit' ? doorsHeight / unit.drawerCount : drawerH;
                   for(let i=0; i<unit.drawerCount; i++) {
                     const yPos = (h/2) - (actualDrawerH / 2) - (i * actualDrawerH);
+                    const isOpen = unit._3dDrawerOpen;
+                    const openOffset = isOpen ? 0.15 : 0; // Pull out 150mm when open
+                    
+                    // Drawer sides/box (visible when open)
+                    const drawerBoxH = actualDrawerH - 0.02;
+                    const drawerBoxD = isOpen ? 0.15 : 0.18;
+                    
                     details.push(
-                      <group key={`drawer-${i}`} position={[0, yPos, frontZ]}>
-                        <Box args={[w - 0.004, actualDrawerH - 0.004, doorT]} castShadow>
-                          <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
-                        </Box>
-                        <Box args={[w * 0.4, 0.02, 0.015]} position={[0, 0, doorT/2 + 0.007]} castShadow>
-                          <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
-                        </Box>
+                      <group key={`drawer-${i}`}>
+                        <group position={[0, yPos, frontZ + (isOpen ? openOffset : 0)]}>
+                          {/* Drawer Front Panel */}
+                          <Box args={[w - 0.004, actualDrawerH - 0.004, 0.016]} castShadow>
+                            <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                          </Box>
+                          {/* Drawer Handle (profile/bar handle) */}
+                          <Box args={[w * 0.35, 0.015, 0.012]} position={[0, -(actualDrawerH/2) + 0.02, 0.012]} castShadow>
+                            <meshStandardMaterial color="#71717a" metalness={0.8} roughness={0.2} />
+                          </Box>
+                          {/* Drawer sides (visible when open) */}
+                          {isOpen && (
+                            <>
+                              {/* Drawer left side */}
+                              <Box args={[0.012, drawerBoxH, drawerBoxD]} position={[-w/2 + 0.008, 0, -drawerBoxD/2]} castShadow>
+                                <meshStandardMaterial color="#d4d4d8" roughness={0.4} />
+                              </Box>
+                              {/* Drawer right side */}
+                              <Box args={[0.012, drawerBoxH, drawerBoxD]} position={[w/2 - 0.008, 0, -drawerBoxD/2]} castShadow>
+                                <meshStandardMaterial color="#d4d4d8" roughness={0.4} />
+                              </Box>
+                              {/* Drawer bottom */}
+                              <Box args={[w - 0.024, 0.006, drawerBoxD]} position={[0, -drawerBoxH/2, -drawerBoxD/2]} castShadow>
+                                <meshStandardMaterial color="#a1a1aa" roughness={0.5} />
+                              </Box>
+                              {/* Drawer back */}
+                              <Box args={[w - 0.024, drawerBoxH, 0.006]} position={[0, 0, -drawerBoxD]} castShadow>
+                                <meshStandardMaterial color="#a1a1aa" roughness={0.5} />
+                              </Box>
+                              {/* Drawer Runner Rails (full extension slides) */}
+                              {i === 0 && (
+                                <>
+                                  <Box args={[0.008, 0.01, openOffset + 0.05]} position={[-w/2 + 0.015, -drawerBoxH/2 + 0.005, -(openOffset + 0.05)/2]} castShadow>
+                                    <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
+                                  </Box>
+                                  <Box args={[0.008, 0.01, openOffset + 0.05]} position={[w/2 - 0.015, -drawerBoxH/2 + 0.005, -(openOffset + 0.05)/2]} castShadow>
+                                    <meshStandardMaterial color="#64748b" metalness={0.9} roughness={0.1} />
+                                  </Box>
+                                </>
+                              )}
+                            </>
+                          )}
+                        </group>
                       </group>
                     );
                   }
                   doorsHeight -= (unit.drawerCount * actualDrawerH);
                 }
 
-                // Doors for normal units
-                if (!unit.type.startsWith('corner') && unit.doorCount && unit.doorCount > 0 && doorsHeight > 0) {
-                  const doorW = w / unit.doorCount;
-                  const startX = -w/2 + doorW/2;
-                  for(let i=0; i<unit.doorCount; i++) {
-                    details.push(
-                      <group key={`door-${i}`} position={[startX + (i * doorW), doorsYStart + doorsHeight/2, frontZ]}>
-                        <Box args={[doorW - 0.004, doorsHeight - 0.004, doorT]} castShadow>
-                          <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                // Hinges for doors (more realistic)
+                const renderHinges = (hingeX: number, hingeYStart: number, hingeH: number, hingeCount: number, doorW: number, hingeSide: 'left' | 'right') => {
+                  if (!hingeCount || hingeCount === 0) return null;
+                  const spacing = hingeH / (hingeCount + 1);
+                  const side = hingeSide === 'left' ? -1 : 1;
+                  return Array.from({ length: hingeCount }).map((_, hi) => {
+                    const hingeY = hingeYStart - hingeH/2 + spacing * (hi + 1);
+                    return (
+                      <group key={`hinge-${hi}`}>
+                        {/* Hinge leaf (carcass side) */}
+                        <Box args={[0.008, 0.022, 0.014]} position={[side * (doorW/2 - 0.001), hingeY, frontZ - doorT/2]} castShadow>
+                          <meshStandardMaterial color="#78716c" metalness={0.7} roughness={0.3} />
                         </Box>
-                        <Box args={[0.015, doorsHeight * 0.3, 0.02]} position={[(i%2===0 ? doorW/2 - 0.05 : -doorW/2 + 0.05), 0, doorT/2 + 0.01]} castShadow>
-                          <meshStandardMaterial color="#64748b" metalness={0.8} roughness={0.2} />
+                        {/* Hinge pin (cylinder) */}
+                        <group position={[side * doorW/2, hingeY, frontZ - doorT/2]} rotation={[0, 0, Math.PI/2]}>
+                          <mesh castShadow>
+                            <cylinderGeometry args={[0.003, 0.003, 0.022, 8]} />
+                            <meshStandardMaterial color="#a8a29e" metalness={0.9} roughness={0.1} />
+                          </mesh>
+                        </group>
+                        {/* Hinge leaf (door side) - visible when open */}
+                        {unit._3dDoorOpen && (
+                          <mesh position={[side * (doorW/2 + 0.004), hingeY, frontZ - doorT/2 + 0.01]} rotation={[0, side * 1.2, 0]} castShadow>
+                            <boxGeometry args={[0.006, 0.018, 0.014]} />
+                            <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                          </mesh>
+                        )}
+                      </group>
+                    );
+                  });
+                };
+
+                // Internal shelves (visible when doors open)
+                const renderShelves = () => {
+                  const shelfCnt = unit.shelfCount || 0;
+                  if (shelfCnt === 0) return null;
+                  const shelfT = 0.016; // 16mm shelf thickness
+                  const innerW = w - 0.036; // minus 2 side panels (18mm each)
+                  const innerD = d - 0.036;
+                  const shelves: any[] = [];
+                  for (let si = 0; si < shelfCnt; si++) {
+                    const spacing = h / (shelfCnt + 1);
+                    const shelfY = -h/2 + spacing * (si + 1);
+                    shelves.push(
+                      <group key={`shelf-${si}`}>
+                        {/* Shelf board */}
+                        <Box args={[innerW, shelfT, innerD]} position={[0, shelfY, 0]} castShadow>
+                          <meshStandardMaterial color="#e4e4e7" roughness={0.5} />
+                        </Box>
+                        {/* Shelf front edge banding */}
+                        <Box args={[innerW, shelfT + 0.002, 0.002]} position={[0, shelfY, d/2 - 0.002]} castShadow>
+                          <meshStandardMaterial color="#d4d4d8" roughness={0.3} />
                         </Box>
                       </group>
                     );
+                  }
+                  return shelves;
+                };
+
+                // Interior back panel texture (visible when doors open)
+                const renderInterior = () => {
+                  return (
+                    <group>
+                      {/* Back wall of carcass */}
+                      <Box args={[w - 0.004, h - 0.004, 0.003]} position={[0, 0, -d/2 + 0.005]}>
+                        <meshStandardMaterial color="#f5f5f4" roughness={0.6} />
+                      </Box>
+                      {/* Side panels interior */}
+                      <Box args={[0.003, h - 0.004, d - 0.01]} position={[-w/2 + 0.005, 0, 0]}>
+                        <meshStandardMaterial color="#e7e5e4" roughness={0.5} />
+                      </Box>
+                      <Box args={[0.003, h - 0.004, d - 0.01]} position={[w/2 - 0.005, 0, 0]}>
+                        <meshStandardMaterial color="#e7e5e4" roughness={0.5} />
+                      </Box>
+                    </group>
+                  );
+                };
+
+                // Render a single door with realistic opening mechanism
+                const renderDoor = (key: string, doorCenterX: number, doorW: number, isRightSide: boolean, doorIndex: number) => {
+                  const isOpen = unit._3dDoorOpen;
+                  const doorOpenAngle = isOpen ? 1.4 : 0; // ~80 degrees
+                  // Door hinge is on the left edge for left-side doors, right edge for right-side
+                  const hingeSide = isRightSide ? 'right' : 'left';
+                  const pivotPos = hingeSide === 'left' ? -doorW/2 : doorW/2;
+                  // Handle position: on the opening side (opposite to hinge)
+                  const handleX = hingeSide === 'left' ? doorW/2 - 0.04 : -doorW/2 + 0.04;
+                  const handleZ = doorT/2 + 0.008;
+                  
+                  // Door frame dimensions
+                  const frameOverlay = 0.025; // 25mm frame overlay
+                  const frameDepth = 0.012; // 12mm frame depth
+                  const panelInset = 0.012; // 12mm inset
+                  
+                  // Determine handle style based on door position and type
+                  const isEvenDoor = doorIndex % 2 === 0;
+                  
+                  return (
+                    <group key={key}>
+                      <group position={[doorCenterX, doorsYStart + doorsHeight/2, frontZ]}>
+                        <group position={[pivotPos, 0, 0]}>
+                          <group rotation={[0, hingeSide === 'left' ? -doorOpenAngle : doorOpenAngle, 0]}>
+                            <group position={[-pivotPos, 0, 0]}>
+                              {/* Door Frame - Stiles and Rails */}
+                              {/* Left stile */}
+                              <Box args={[frameOverlay, doorsHeight, frameDepth]} position={[-doorW/2 + frameOverlay/2, 0, doorT/2 - frameDepth/2]} castShadow>
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                              </Box>
+                              {/* Right stile */}
+                              <Box args={[frameOverlay, doorsHeight, frameDepth]} position={[doorW/2 - frameOverlay/2, 0, doorT/2 - frameDepth/2]} castShadow>
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                              </Box>
+                              {/* Top rail */}
+                              <Box args={[doorW - frameOverlay * 2, frameOverlay, frameDepth]} position={[0, doorsHeight/2 - frameOverlay/2, doorT/2 - frameDepth/2]} castShadow>
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                              </Box>
+                              {/* Bottom rail */}
+                              <Box args={[doorW - frameOverlay * 2, frameOverlay, frameDepth]} position={[0, -doorsHeight/2 + frameOverlay/2, doorT/2 - frameDepth/2]} castShadow>
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                              </Box>
+                              
+                              {/* Door Panel (inset) - with slight bevel effect */}
+                              <Box args={[doorW - frameOverlay * 2 - panelInset * 2, doorsHeight - frameOverlay * 2 - panelInset * 2, 0.006]} position={[0, 0, doorT/2 - 0.001]} castShadow>
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.4} />
+                              </Box>
+                              
+                              {/* Door seal/gasket (visible when closed) */}
+                              {!isOpen && (
+                                <Box args={[doorW - 0.006, doorsHeight - 0.006, 0.003]} position={[0, 0, doorT/2 + 0.001]}>
+                                  <meshStandardMaterial color="#1e293b" roughness={0.9} />
+                                </Box>
+                              )}
+                              
+                              {/* Door Handle - positioned correctly based on hinge side */}
+                              {unit.handleType === 'profile' || unit.handleType === 'gola' ? (
+                                /* Profile/Gola handle - long recessed handle on opening side */
+                                <group position={[handleX, 0, doorT/2 + 0.002]}>
+                                  <Box args={[0.003, doorsHeight * 0.3, 0.015]} castShadow>
+                                    <meshStandardMaterial color="#57534e" metalness={0.7} roughness={0.3} />
+                                  </Box>
+                                </group>
+                              ) : unit.handleType === 'knob' ? (
+                                /* Knob handle - small round handle on opening side */
+                                <group position={[handleX, doorsHeight * 0.25, doorT/2 + 0.01]}>
+                                  <mesh castShadow>
+                                    <sphereGeometry args={[0.012, 16, 16]} />
+                                    <meshStandardMaterial color="#78716c" metalness={0.8} roughness={0.2} />
+                                  </mesh>
+                                </group>
+                              ) : unit.handleType === 'cnc_groove' ? (
+                                /* CNC groove - horizontal slot at top and bottom on opening side */
+                                <>
+                                  <Box args={[0.04, 0.008, 0.003]} position={[handleX, doorsHeight * 0.3, doorT/2 + 0.001]} castShadow>
+                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                  </Box>
+                                  <Box args={[0.04, 0.008, 0.003]} position={[handleX, -doorsHeight * 0.3, doorT/2 + 0.001]} castShadow>
+                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                  </Box>
+                                </>
+                              ) : (
+                                /* Standard bar handle - vertical bar on opening side */
+                                <group position={[handleX, 0, handleZ]}>
+                                  {/* Handle bar */}
+                                  <Box args={[0.008, doorsHeight * 0.35, 0.006]} castShadow>
+                                    <meshStandardMaterial color="#78716c" metalness={0.8} roughness={0.2} />
+                                  </Box>
+                                  {/* Handle base plate (top) */}
+                                  <Box args={[0.014, 0.02, 0.01]} position={[0, doorsHeight * 0.175, -0.002]} castShadow>
+                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                  </Box>
+                                  {/* Handle base plate (bottom) */}
+                                  <Box args={[0.014, 0.02, 0.01]} position={[0, -doorsHeight * 0.175, -0.002]} castShadow>
+                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                  </Box>
+                                </group>
+                              )}
+                              
+                              {/* Hinges - positioned on hinge side */}
+                              {renderHinges(pivotPos, doorsHeight/2, doorsHeight, unit.hingesPerDoor || 2, doorW, hingeSide)}
+                            </group>
+                          </group>
+                        </group>
+                      </group>
+                    </group>
+                  );
+                };
+
+                // Main door rendering logic
+                if (!unit.type.startsWith('corner') && unit.doorCount && unit.doorCount > 0 && doorsHeight > 0) {
+                  const doorCfg = unit.doorConfig;
+                  const divStyle = doorCfg?.divisionStyle || 'equal';
+                  const divWidthMm = doorCfg?.dividerWidthMm || 50;
+                  const dividerW = divWidthMm * SCALE_3D;
+
+                  // Show interior and shelves when doors are open
+                  if (unit._3dDoorOpen) {
+                    details.push(renderInterior());
+                    const shelfEls = renderShelves();
+                    if (shelfEls) details.push(...shelfEls);
+                  }
+
+                  if (divStyle === 'symmetrical' && unit.doorCount >= 4) {
+                    // Symmetrical: two groups separated by a fixed divider strip
+                    // Left group: doors open from right to left (hinge on right)
+                    // Right group: doors open from left to right (hinge on left)
+                    const panelGroups = doorCfg?.panelGroupSizes || [Math.floor(unit.doorCount / 2), Math.ceil(unit.doorCount / 2)];
+                    const totalDoorArea = w - dividerW;
+                    let currentX = -w/2;
+                    
+                    panelGroups.forEach((groupSize: number, gi: number) => {
+                      const groupW = (totalDoorArea * groupSize) / unit.doorCount;
+                      const doorW = groupW / groupSize;
+                      const isRightGroup = gi === 1;
+                      
+                      for (let di = 0; di < groupSize; di++) {
+                        const doorIdx = panelGroups.slice(0, gi).reduce((a, b) => a + b, 0) + di;
+                        const doorCenterX = currentX + doorW/2 + di * doorW;
+                        
+                        // In left group: all doors hinge on right (open leftward)
+                        // In right group: all doors hinge on left (open rightward)
+                        const isRightSide = isRightGroup;
+                        
+                        details.push(renderDoor(`door-${gi}-${di}`, doorCenterX, doorW, isRightSide, doorIdx));
+                      }
+                      currentX += groupW;
+                      
+                      // Divider strip
+                      if (gi < panelGroups.length - 1) {
+                        details.push(
+                          <Box key={`divider-${gi}`} args={[dividerW, doorsHeight, doorT + 0.003]} position={[currentX + dividerW/2, doorsYStart + doorsHeight/2, frontZ]} castShadow>
+                            <meshStandardMaterial color={doorCfg?.dividerColorHex || unit.colorHex || '#D4B896'} roughness={0.4} />
+                          </Box>
+                        );
+                        currentX += dividerW;
+                      }
+                    });
+                  } else {
+                    // Equal division: alternating hinge sides for realistic opening
+                    // Odd doors (1st, 3rd, 5th...) hinge on left, open rightward
+                    // Even doors (2nd, 4th, 6th...) hinge on right, open leftward
+                    const doorW = w / unit.doorCount;
+                    const startX = -w/2 + doorW/2;
+                    for(let i=0; i<unit.doorCount; i++) {
+                      const doorX = startX + (i * doorW);
+                      const isRightSide = i % 2 === 1; // Even index = left hinge, Odd index = right hinge
+                      details.push(renderDoor(`door-${i}`, doorX, doorW, isRightSide, i));
+                    }
                   }
                 }
 
@@ -539,10 +889,12 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
           target={[roomWidthM / 2, 1, roomLengthM / 2]} 
           enableDamping
           dampingFactor={0.08}
+          enableZoom
           minDistance={1.5}
           maxDistance={roomLengthM + roomWidthM}
           maxPolarAngle={Math.PI / 2 - 0.05}
           minPolarAngle={0.1}
+          zoomSpeed={0.9}
         />
         <Grid infiniteGrid fadeDistance={20} sectionColor="#10b981" cellColor="#3f3f46" />
       </Canvas>
@@ -550,9 +902,30 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
       {/* Context Menu HTML Overlay */}
       {contextMenu && (
         <div 
-          className="absolute z-50 bg-zinc-900 border border-zinc-700 shadow-2xl rounded-xl py-2 w-48 text-right overflow-hidden backdrop-blur-xl"
+          className="absolute z-50 bg-zinc-900 border border-zinc-700 shadow-2xl rounded-xl py-2 w-52 text-right overflow-hidden backdrop-blur-xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          {contextMenu.type === 'unit' && (
+            <button
+              onClick={() => {
+                const store = useProjectStore.getState();
+                const targetUnit = store.units.find(u => u.id === contextMenu.id);
+                if (targetUnit) {
+                  const updatedUnits = store.units.map(u => u.id === contextMenu.id ? { ...u, _3dDoorOpen: !u._3dDoorOpen } : u);
+                  useProjectStore.setState({ units: updatedUnits });
+                }
+                setContextMenu(null);
+              }}
+              className="w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-end gap-3 transition-colors"
+            >
+              {(() => {
+                const targetUnit = useProjectStore.getState().units.find(u => u.id === contextMenu.id);
+                return targetUnit?._3dDoorOpen ? '🔒 إغلاق الأبواب' : '🔓 فتح الأبواب';
+              })()} 
+              <EyeOff size={16} />
+            </button>
+          )}
+
           <button
             onClick={() => {
               duplicateElement(contextMenu.id, contextMenu.type);

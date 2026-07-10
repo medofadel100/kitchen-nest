@@ -1,5 +1,3 @@
-"use client";
-
 import React, { useRef, useState, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Circle, Text, Group } from 'react-konva';
 import { useProjectStore } from '@/store/projectStore';
@@ -7,12 +5,18 @@ import { DraggableUnit } from './DraggableUnit';
 import { formatMeasurement } from '@/utils/measurements';
 import Konva from 'konva';
 import { Copy, EyeOff, Edit2, Trash2 } from 'lucide-react';
+import { HistoryPanel } from '../HistoryPanel';
+import { SplashLoader } from '../SplashLoader';
+
 
 export const KitchenCanvas = () => {
   const { units, selectElement, room, activeTool, setActiveTool, addRoomObstacle, addRoomFixture, displayUnit, duplicateElement, toggleElementVisibility, isSnappingEnabled } = useProjectStore();
+  const { historyVisible } = useProjectStore();
   const stageRef = useRef<Konva.Stage>(null);
   
   const [isMounted, setIsMounted] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+
   const [measureStart, setMeasureStart] = useState<{ x: number, y: number } | null>(null);
   const [measureCurrent, setMeasureCurrent] = useState<{ x: number, y: number } | null>(null);
   
@@ -21,6 +25,8 @@ export const KitchenCanvas = () => {
   const CANVAS_WIDTH = 1200;
   const CANVAS_HEIGHT = 800;
   const SCALE = 0.1; // 1px = 10mm
+
+  // ---------- ALL HOOKS MUST BE BEFORE ANY EARLY RETURN ----------
 
   // Close context menu on click anywhere
   useEffect(() => {
@@ -33,6 +39,22 @@ export const KitchenCanvas = () => {
     setIsMounted(true);
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const state = useProjectStore.getState();
+
+      const { undo, redo } = useProjectStore.getState();
+
+      if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) {
+
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      if (e.ctrlKey && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        redo();
+        return;
+      }
       // Ignore if typing in an input or textarea
       if (
         document.activeElement?.tagName === 'INPUT' ||
@@ -86,6 +108,15 @@ export const KitchenCanvas = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Hide splash after a short delay so the first render has time to paint.
+  useEffect(() => {
+    if (!room) return;
+    const t = window.setTimeout(() => setShowSplash(false), 450);
+    return () => window.clearTimeout(t);
+  }, [room]);
+
+  // ---------- EARLY RETURN AFTER ALL HOOKS ----------
 
   if (!isMounted) return <div className="w-full h-full bg-zinc-900/50 animate-pulse rounded-3xl"></div>;
 
@@ -168,6 +199,7 @@ export const KitchenCanvas = () => {
   };
 
   const handleStageMouseUp = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+
     if (activeTool === 'measure') {
       // Keep the measure line visible until they click again, or clear it if they release near start
       if (measureStart && measureCurrent) {
@@ -191,10 +223,41 @@ export const KitchenCanvas = () => {
 
   return (
     <div className="w-full h-full bg-transparent overflow-auto relative">
+      {showSplash && <SplashLoader />}
       <Stage
+
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
         ref={stageRef}
+        draggable={false}
+        onWheel={(e) => {
+          e.evt.preventDefault();
+          const stage = stageRef.current;
+          if (!stage) return;
+          const pointer = stage.getPointerPosition();
+          if (!pointer) return;
+
+          const oldScale = stage.scaleX();
+          const direction = e.evt.deltaY > 0 ? -1 : 1;
+          const zoomFactor = direction > 0 ? 1.06 : 0.94;
+          const newScale = Math.max(0.5, Math.min(3, oldScale * zoomFactor));
+
+          // zoom around pointer
+          const mousePointTo = {
+            x: (pointer.x - stage.x()) / oldScale,
+            y: (pointer.y - stage.y()) / oldScale,
+          };
+
+          const newPos = {
+            x: pointer.x - mousePointTo.x * newScale,
+            y: pointer.y - mousePointTo.y * newScale,
+          };
+
+          stage.scale({ x: newScale, y: newScale });
+          stage.position({ x: newPos.x, y: newPos.y });
+          stage.batchDraw();
+        }}
+
         onMouseDown={handleStageMouseDown}
         onMouseMove={handleStageMouseMove}
         onMouseUp={handleStageMouseUp}
@@ -383,66 +446,7 @@ export const KitchenCanvas = () => {
         )}
         
         <Layer x={offsetX} y={offsetY}>
-          {/* Smart Rulers */}
-          {(() => {
-            const selectedElement = useProjectStore.getState().selectedElement;
-            if (!room || !selectedElement || selectedElement.type !== 'unit') return null;
-            
-            const unit = units.find(u => u.id === selectedElement.id);
-            if (!unit) return null;
-
-            const unitX = unit.position.xMm;
-            const unitY = unit.position.yMm;
-            const unitW = unit.dimensions.widthMm;
-            const unitD = unit.dimensions.depthMm;
-
-            const distLeft = unitX;
-            const distRight = room.widthMm - (unitX + unitW);
-            const distTop = unitY;
-            const distBottom = room.lengthMm - (unitY + unitD);
-
-            const rulers = [];
-
-            // Left Ruler
-            if (distLeft > 0) {
-              rulers.push(
-                <Group key="r-left">
-                  <Line points={[0, (unitY + unitD / 2) * SCALE, unitX * SCALE, (unitY + unitD / 2) * SCALE]} stroke="#10b981" strokeWidth={1.5} dash={[4, 4]} />
-                  <Text x={(unitX / 2) * SCALE - 20} y={(unitY + unitD / 2) * SCALE - 15} text={formatMeasurement(distLeft, displayUnit)} fill="#10b981" fontSize={12} fontStyle="bold" />
-                </Group>
-              );
-            }
-            // Right Ruler
-            if (distRight > 0) {
-              rulers.push(
-                <Group key="r-right">
-                  <Line points={[(unitX + unitW) * SCALE, (unitY + unitD / 2) * SCALE, room.widthMm * SCALE, (unitY + unitD / 2) * SCALE]} stroke="#10b981" strokeWidth={1.5} dash={[4, 4]} />
-                  <Text x={((unitX + unitW + room.widthMm) / 2) * SCALE - 20} y={(unitY + unitD / 2) * SCALE - 15} text={formatMeasurement(distRight, displayUnit)} fill="#10b981" fontSize={12} fontStyle="bold" />
-                </Group>
-              );
-            }
-            // Top Ruler
-            if (distTop > 0) {
-              rulers.push(
-                <Group key="r-top">
-                  <Line points={[(unitX + unitW / 2) * SCALE, 0, (unitX + unitW / 2) * SCALE, unitY * SCALE]} stroke="#10b981" strokeWidth={1.5} dash={[4, 4]} />
-                  <Text x={(unitX + unitW / 2) * SCALE + 5} y={(unitY / 2) * SCALE - 10} text={formatMeasurement(distTop, displayUnit)} fill="#10b981" fontSize={12} fontStyle="bold" />
-                </Group>
-              );
-            }
-            // Bottom Ruler
-            if (distBottom > 0) {
-              rulers.push(
-                <Group key="r-bottom">
-                  <Line points={[(unitX + unitW / 2) * SCALE, (unitY + unitD) * SCALE, (unitX + unitW / 2) * SCALE, room.lengthMm * SCALE]} stroke="#10b981" strokeWidth={1.5} dash={[4, 4]} />
-                  <Text x={(unitX + unitW / 2) * SCALE + 5} y={((unitY + unitD + room.lengthMm) / 2) * SCALE - 10} text={formatMeasurement(distBottom, displayUnit)} fill="#10b981" fontSize={12} fontStyle="bold" />
-                </Group>
-              );
-            }
-
-            return rulers;
-          })()}
-
+          {/* Units */}
           {units.map((unit) => (
             <Group key={unit.id} opacity={unit.isHidden ? 0.3 : 1}>
               <DraggableUnit unit={unit} onContextMenu={handleContextMenu} />
@@ -450,6 +454,8 @@ export const KitchenCanvas = () => {
           ))}
         </Layer>
       </Stage>
+
+      <HistoryPanel />
 
       {/* Custom Context Menu Overlay */}
       {contextMenu && (
@@ -497,4 +503,3 @@ export const KitchenCanvas = () => {
     </div>
   );
 };
-

@@ -48,13 +48,21 @@ export const PricingDashboard = () => {
   let totalUnplacedPieces = 0;
   const nestingDetails: any[] = [];
 
-  Object.entries(piecesByMaterial).forEach(([materialId, pieces]) => {
+  Object.entries(piecesByMaterial).forEach(([materialKey, pieces]) => {
+    const [materialId] = materialKey.split('__');
     const mat = materialsById[materialId];
     if (mat) {
       const res = nestPiecesForMaterial(pieces, mat);
       totalSheets += res.sheets.length;
       totalUnplacedPieces += (res.unplacedPieces?.length || 0);
-      nestingDetails.push({ material: mat, result: res, piecesCount: pieces.length });
+      const colorSample = pieces.find(piece => piece.colorHex);
+      nestingDetails.push({
+        material: mat,
+        result: res,
+        piecesCount: pieces.length,
+        colorHex: colorSample?.colorHex || mat.colorHex,
+        colorId: colorSample?.colorId || 'default',
+      });
     }
   });
 
@@ -196,7 +204,14 @@ export const PricingDashboard = () => {
 
                     return (
                       <tr key={idx} className="hover:bg-zinc-800/30 transition-colors">
-                        <td className="py-4 font-bold">{nest.material.nameAr}</td>
+                        <td className="py-4 font-bold">
+                          <div className="flex items-center gap-2">
+                            <span>{nest.material.nameAr}</span>
+                            {nest.colorHex && (
+                              <span className="inline-flex h-3 w-3 rounded-full border border-zinc-700" style={{ backgroundColor: nest.colorHex }} />
+                            )}
+                          </div>
+                        </td>
                         <td className="py-4 font-mono text-zinc-300">{nest.piecesCount}</td>
                         <td className="py-4">
                           <span className="inline-flex items-center justify-center px-3 py-1 rounded-lg bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">

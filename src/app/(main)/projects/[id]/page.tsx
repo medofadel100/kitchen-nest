@@ -5,30 +5,33 @@ import dynamic from "next/dynamic";
 import { ToolsSidebar } from "@/components/ToolsSidebar";
 import { RoomSetupWizard } from "@/components/RoomSetupWizard";
 import { useProjectStore } from "@/store/projectStore";
+import { getProjectById } from "@/lib/firebase/projects";
 import { motion, AnimatePresence } from "framer-motion";
 import { Map, Ruler, Settings2, Calculator, PaintBucket, Share2 } from "lucide-react";
 import { PricingDashboard } from "@/components/PricingDashboard";
 import { ProjectSettingsModal } from "@/components/ProjectSettingsModal";
 import { ProductionModal } from "@/components/ProductionModal";
 import { Scissors } from "lucide-react";
+import { SplashLoader } from "@/components/SplashLoader";
 
 const KitchenCanvas = dynamic(() => import("@/components/canvas/KitchenCanvas").then(mod => mod.KitchenCanvas), { 
   ssr: false,
-  loading: () => <div className="w-full h-full flex items-center justify-center bg-zinc-900/50 text-zinc-400">جاري تحميل مساحة العمل 2D...</div>
+  loading: () => <SplashLoader text="جاري تحميل مساحة العمل 2D..." />
 });
 
 const KitchenCanvas3D = dynamic(() => import("@/components/canvas/KitchenCanvas3D").then(mod => mod.KitchenCanvas3D), { 
   ssr: false,
-  loading: () => <div className="w-full h-full flex items-center justify-center bg-zinc-900/50 text-zinc-400">جاري تحميل مساحة العمل 3D...</div>
+  loading: () => <SplashLoader text="جاري تحميل مساحة العمل 3D..." />
 });
 
 export default function ProjectWorkspace({ params }: { params: { id: string } }) {
-  const { isRoomSetupComplete, displayUnit, setDisplayUnit } = useProjectStore();
+  const { isRoomSetupComplete, displayUnit, setDisplayUnit, loadProjectData } = useProjectStore();
   const [viewMode, setViewMode] = React.useState<'2d' | '3d'>('2d');
   const [activeTab, setActiveTab] = React.useState<'design' | 'pricing'>('design');
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isProductionOpen, setIsProductionOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [isLoadingProject, setIsLoadingProject] = React.useState(true);
 
   const handleSaveProject = async () => {
     setIsSaving(true);
@@ -62,6 +65,26 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
   };
 
   React.useEffect(() => {
+    let isMounted = true;
+
+    const fetchProject = async () => {
+      try {
+        setIsLoadingProject(true);
+        const project = await getProjectById(params.id);
+        if (isMounted && project) {
+          loadProjectData(project);
+        }
+      } catch (error) {
+        console.error('Failed to load project:', error);
+      } finally {
+        if (isMounted) {
+          setIsLoadingProject(false);
+        }
+      }
+    };
+
+    fetchProject();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Delete') {
         if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
@@ -79,13 +102,24 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [params.id, loadProjectData]);
+
+  if (isLoadingProject) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-zinc-950 text-zinc-100">
+        <SplashLoader text="جاري تحميل المشروع من السحابة..." />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-zinc-950 text-zinc-100">
       <AnimatePresence>
-        {!isRoomSetupComplete && <RoomSetupWizard key="wizard" />}
+        {!isRoomSetupComplete && !isLoadingProject && <RoomSetupWizard key="wizard" />}
       </AnimatePresence>
       
       {/* Sidebar on the right (RTL) */}

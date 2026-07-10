@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save, AlertTriangle } from 'lucide-react';
-import { Material, MaterialCategory, BoardType } from '@/types';
+import { X, Save, AlertTriangle, Plus, Trash2 } from 'lucide-react';
+import { Material, MaterialCategory, BoardType, MaterialColor } from '@/types';
 
 interface MaterialModalProps {
   isOpen: boolean;
@@ -22,6 +22,7 @@ export const MaterialModal = ({ isOpen, onClose, material, onSave }: MaterialMod
     hasGrainDirection: false,
     isPricePlaceholder: false,
     colorHex: '#cccccc',
+    availableColors: [],
     supplierName: '',
   });
 
@@ -40,6 +41,7 @@ export const MaterialModal = ({ isOpen, onClose, material, onSave }: MaterialMod
         hasGrainDirection: false,
         isPricePlaceholder: false, // Explicitly false for new user-added materials
         colorHex: '#cccccc',
+        availableColors: [],
         supplierName: '',
       });
     }
@@ -145,6 +147,59 @@ export const MaterialModal = ({ isOpen, onClose, material, onSave }: MaterialMod
                       />
                     </div>
                   </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-emerald-500 font-bold text-sm border-b border-zinc-800 pb-2">الألوان المتاحة لنفس الخامة</h3>
+                <div className="space-y-3">
+                  <p className="text-xs text-zinc-500">أضف أكثر من لون لنفس الخامة حتى تظهر في اختيار الألوان داخل المشروع.</p>
+                  {(formData.availableColors || []).map((color, index) => (
+                    <div key={color.id || index} className="flex gap-2 items-center rounded-xl border border-zinc-800 bg-zinc-950/70 p-3">
+                      <input
+                        type="text"
+                        value={color.nameAr}
+                        onChange={(e) => {
+                          const nextColors = [...(formData.availableColors || [])];
+                          nextColors[index] = { ...nextColors[index], nameAr: e.target.value };
+                          setFormData({ ...formData, availableColors: nextColors });
+                        }}
+                        placeholder="اسم اللون"
+                        className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                      />
+                      <input
+                        type="color"
+                        value={color.colorHex}
+                        onChange={(e) => {
+                          const nextColors = [...(formData.availableColors || [])];
+                          nextColors[index] = { ...nextColors[index], colorHex: e.target.value };
+                          setFormData({ ...formData, availableColors: nextColors });
+                        }}
+                        className="h-10 w-12 rounded cursor-pointer bg-zinc-950 border border-zinc-800 p-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextColors = (formData.availableColors || []).filter((_, i) => i !== index);
+                          setFormData({ ...formData, availableColors: nextColors });
+                        }}
+                        className="p-2 rounded-xl border border-zinc-800 text-zinc-400 hover:text-rose-400 hover:border-rose-500/40 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextColors = [...(formData.availableColors || []), { id: `color_${Date.now()}`, nameAr: `لون ${((formData.availableColors || []).length + 1)}`, colorHex: '#D4B896' } as MaterialColor];
+                      setFormData({ ...formData, availableColors: nextColors });
+                    }}
+                    className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
+                  >
+                    <Plus size={16} />
+                    إضافة لون جديد
+                  </button>
                 </div>
               </div>
 
