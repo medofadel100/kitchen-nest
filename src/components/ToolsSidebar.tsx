@@ -152,7 +152,7 @@ export const ToolsSidebar = () => {
         <h2 className="text-sm font-bold text-zinc-500 mb-3 flex items-center gap-2">
           وحدات المطبخ
         </h2>
-        <div className="space-y-2">
+        <div className="space-y-2 mb-6">
           {kitchenTools.map((tool, idx) => {
             const Icon = tool.icon;
             return (
@@ -171,6 +171,145 @@ export const ToolsSidebar = () => {
               </motion.button>
             )
           })}
+        </div>
+
+        <h2 className="text-sm font-bold text-zinc-500 mb-3 flex items-center gap-2">
+          الأجهزة الكهربائية
+        </h2>
+        <div className="space-y-2">
+          {[
+            { type: 'fridge', label: 'ثلاجة', labelEn: 'Fridge', icon: '🧊', color: 'text-cyan-400', bgHover: 'hover:bg-cyan-500/10 hover:border-cyan-500/50' },
+            { type: 'freezer', label: 'فريزر', labelEn: 'Freezer', icon: '❄️', color: 'text-blue-400', bgHover: 'hover:bg-blue-500/10 hover:border-blue-500/50' },
+            { type: 'oven', label: 'فرن', labelEn: 'Oven', icon: '🔥', color: 'text-orange-400', bgHover: 'hover:bg-orange-500/10 hover:border-orange-500/50' },
+            { type: 'stove', label: 'بوتاجاز', labelEn: 'Stove', icon: '🍳', color: 'text-red-400', bgHover: 'hover:bg-red-500/10 hover:border-red-500/50' },
+            { type: 'dishwasher', label: 'غسالة أطباق', labelEn: 'Dishwasher', icon: '🍽️', color: 'text-teal-400', bgHover: 'hover:bg-teal-500/10 hover:border-teal-500/50' },
+            { type: 'washing_machine', label: 'غسالة ملابس', labelEn: 'Washing Machine', icon: '👕', color: 'text-indigo-400', bgHover: 'hover:bg-indigo-500/10 hover:border-indigo-500/50' },
+            { type: 'dryer', label: 'مجفف ملابس', labelEn: 'Dryer', icon: '🌬️', color: 'text-purple-400', bgHover: 'hover:bg-purple-500/10 hover:border-purple-500/50' },
+            { type: 'sink', label: 'حوض مطبخ', labelEn: 'Sink', icon: '🚰', color: 'text-emerald-400', bgHover: 'hover:bg-emerald-500/10 hover:border-emerald-500/50' },
+          ].map((appliance, idx) => (
+            <motion.button
+              key={appliance.type}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: (kitchenTools.length + idx) * 0.05 }}
+              onClick={() => {
+                // Add appliance as a base unit with special label
+                const settings = useProjectStore.getState().projectSettings;
+                const baseX = room ? Math.max(50, (room.widthMm / 2) - 300) : 1000;
+                const baseY = 0;
+                
+                let defaultX = baseX;
+                let defaultY = baseY;
+                
+                // Default dimensions for appliances
+                let widthMm = 600;
+                let depthMm = 600;
+                let heightMm = 850;
+                
+                // Set specific dimensions for each appliance type
+                switch(appliance.type) {
+                  case 'fridge':
+                    widthMm = 700;
+                    depthMm = 700;
+                    heightMm = 1800;
+                    break;
+                  case 'freezer':
+                    widthMm = 600;
+                    depthMm = 600;
+                    heightMm = 1800;
+                    break;
+                  case 'oven':
+                    widthMm = 600;
+                    depthMm = 600;
+                    heightMm = 900;
+                    break;
+                  case 'stove':
+                    widthMm = 600;
+                    depthMm = 600;
+                    heightMm = 900;
+                    break;
+                  case 'dishwasher':
+                    widthMm = 600;
+                    depthMm = 600;
+                    heightMm = 850;
+                    break;
+                  case 'washing_machine':
+                    widthMm = 600;
+                    depthMm = 600;
+                    heightMm = 850;
+                    break;
+                  case 'dryer':
+                    widthMm = 600;
+                    depthMm = 600;
+                    heightMm = 850;
+                    break;
+                  case 'sink':
+                    widthMm = 700;
+                    depthMm = 600;
+                    heightMm = 850;
+                    break;
+                }
+                
+                if (room) {
+                  const newUnit = {
+                    id: `unit_temp`,
+                    type: 'base' as UnitType,
+                    position: { xMm: baseX, yMm: baseY, zMm: 0, rotationDeg: 0 },
+                    dimensions: { widthMm, depthMm, heightMm },
+                    materialId: settings.defaultMaterialId,
+                    colorHex: settings.defaultBaseColor,
+                    doorMaterialId: settings.defaultDoorMaterialId,
+                    doorColorHex: settings.defaultBaseDoorColor,
+                    doorCount: 0,
+                    drawerCount: 0,
+                    shelfCount: 0,
+                    hingeType: settings.defaultHingeId,
+                    handleType: settings.defaultHandleId,
+                    hasLedProfile: false,
+                  } as any;
+                  
+                  const placement = findSmartUnitPlacement(newUnit, room, useProjectStore.getState().units, baseX, baseY, 50, 80);
+                  defaultX = placement.xMm;
+                  defaultY = placement.yMm;
+                }
+                
+                // Add unit with appliance label
+                const unitId = `unit_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+                const newUnit: any = {
+                  id: unitId,
+                  type: 'base',
+                  label: `${appliance.label} (${appliance.labelEn})`,
+                  position: { xMm: defaultX, yMm: defaultY, zMm: 0, rotationDeg: 0 },
+                  dimensions: { widthMm, depthMm, heightMm },
+                  materialId: settings.defaultMaterialId,
+                  colorHex: settings.defaultBaseColor,
+                  doorMaterialId: settings.defaultDoorMaterialId,
+                  doorColorHex: settings.defaultBaseDoorColor,
+                  doorCount: 0,
+                  drawerCount: 0,
+                  shelfCount: 0,
+                  hingeType: settings.defaultHingeId,
+                  handleType: settings.defaultHandleId,
+                  hasLedProfile: false,
+                };
+                
+                useProjectStore.getState().commitSnapshot();
+                useProjectStore.setState((state) => ({
+                  units: [...state.units, newUnit],
+                  selectedUnitId: unitId,
+                  selectedElement: { id: unitId, type: 'unit' },
+                  selectedElements: [{ id: unitId, type: 'unit' }],
+                }));
+              }}
+              className={`w-full flex items-center gap-3 p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl transition-all duration-300 text-right group ${appliance.bgHover}`}
+            >
+              <div className={`text-2xl`}>{appliance.icon}</div>
+              <div className="flex-1">
+                <span className="font-semibold text-zinc-300 group-hover:text-white transition-colors text-xs block">{appliance.label}</span>
+                <span className="text-[10px] text-zinc-500">{appliance.labelEn}</span>
+              </div>
+            </motion.button>
+          ))}
         </div>
       </div>
 

@@ -196,7 +196,8 @@ export interface Room {
 export interface Appliance {
   id: string;
   nameAr: string;
-  category: "oven" | "hob" | "hood" | "fridge" | "dishwasher" | "sink" | "microwave" | "washing_machine";
+  category: "oven" | "hob" | "hood" | "fridge" | "freezer" | "dishwasher" | "sink" | "microwave" | "washing_machine" | "dryer" | "stove";
+  variant?: "standard" | "premium" | "compact"; // For fridges and ovens
   defaultDimensions: UnitDimensions;
   // الفتحة القياسية للتركيب (مهم عند تغيير الحجم عشان يفضل يتركب صح)
   standardCutoutMm?: { widthMm: number; heightMm: number };

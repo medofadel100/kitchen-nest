@@ -161,8 +161,22 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
           const isPrimarySelected = selectedElement?.id === unit.id;
 
           const isFridge = unit.label?.includes('ثلاجة') || unit.label?.toLowerCase().includes('fridge');
+          const isFreezer = unit.label?.includes('فريزر') || unit.label?.toLowerCase().includes('freezer');
           const isOven = unit.label?.includes('فرن') || unit.label?.toLowerCase().includes('oven') || unit.label?.includes('بوتاجاز');
+          const isStove = unit.label?.includes('بوتاجاز') || unit.label?.toLowerCase().includes('stove') || unit.label?.toLowerCase().includes('hob');
+          const isDishwasher = unit.label?.includes('غسالة أطباق') || unit.label?.toLowerCase().includes('dishwasher');
+          const isWashingMachine = unit.label?.includes('غسالة ملابس') || unit.label?.toLowerCase().includes('washing_machine');
+          const isDryer = unit.label?.includes('مجفف') || unit.label?.toLowerCase().includes('dryer');
           const isSink = unit.label?.includes('حوض') || unit.label?.toLowerCase().includes('sink');
+
+          // Detect variant from label (premium, compact, standard)
+          const getVariant = (): 'standard' | 'premium' | 'compact' => {
+            const label = unit.label?.toLowerCase() || '';
+            if (label.includes('premium') || label.includes('بريميوم') || label.includes('فاخرة')) return 'premium';
+            if (label.includes('compact') || label.includes('كومباكت') || label.includes('مدمج')) return 'compact';
+            return 'standard';
+          };
+          const applianceVariant = (isFridge || isOven) ? getVariant() : undefined;
 
           const unitContent = (
             <group 
@@ -179,9 +193,19 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
             >
               {/* Main Carcass */}
               {isFridge ? (
-                <Appliance3D type="fridge" width={w} height={h} depth={d} />
+                <Appliance3D type="fridge" width={w} height={h} depth={d} variant={applianceVariant} />
+              ) : isFreezer ? (
+                <Appliance3D type="freezer" width={w} height={h} depth={d} />
               ) : isOven ? (
-                <Appliance3D type="oven" width={w} height={h} depth={d} />
+                <Appliance3D type="oven" width={w} height={h} depth={d} variant={applianceVariant} />
+              ) : isStove ? (
+                <Appliance3D type="stove" width={w} height={h} depth={d} />
+              ) : isDishwasher ? (
+                <Appliance3D type="dishwasher" width={w} height={h} depth={d} />
+              ) : isWashingMachine ? (
+                <Appliance3D type="washing_machine" width={w} height={h} depth={d} />
+              ) : isDryer ? (
+                <Appliance3D type="dryer" width={w} height={h} depth={d} />
               ) : isSink ? (
                 <group>
                   {/* Render the standard base carcass but with a sink on top */}
