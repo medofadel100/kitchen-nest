@@ -1,5 +1,6 @@
 import React from 'react';
 import { KitchenProject, Material, NestingResult, PlacedPiece } from '@/types';
+import { getPiecePolygonPoints } from '@/lib/pieceGeometry';
 
 interface CuttingListPrintProps {
   project: KitchenProject;
@@ -166,30 +167,54 @@ export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintPr
                       const longestStringLength = Math.max(piece.label.length, 12);
                       
                       // Calculate maximum font size that fits both width and height
-                      // 0.55 is approx char width/height ratio. 2.5 is for 2 lines + padding
                       const calculatedFontSize = Math.min(
                         maxW / (0.55 * longestStringLength), 
                         maxH / 2.5
                       );
 
-                      // Constrain font size to reasonable limits
                       const finalFontSize = Math.max(12, Math.min(calculatedFontSize, 100));
                       const lineSpacing = finalFontSize * 1.2;
                       const textTransform = textRotated ? `rotate(-90 ${cx} ${cy})` : '';
-                      
-                      return (
-                        <g key={pIdx}>
-                          <rect 
-                            x={piece.xMm} 
-                            y={piece.yMm} 
-                            width={w} 
-                            height={h} 
-                            fill="white" 
-                            stroke="#1f2937" 
+
+                      const notch = piece.notch;
+                      const hasNotch = !!notch;
+
+                      // Default: rect
+                      let pieceShape: React.ReactNode = (
+                        <rect
+                          x={piece.xMm}
+                          y={piece.yMm}
+                          width={w}
+                          height={h}
+                          fill="white"
+                          stroke="#1f2937"
+                          strokeWidth="2"
+                          opacity="0.9"
+                        />
+                      );
+
+                      if (hasNotch) {
+                        const polyW = piece.rotated ? piece.heightMm : piece.widthMm;
+                        const polyH = piece.rotated ? piece.widthMm : piece.heightMm;
+                        const points = getPiecePolygonPoints(polyW, polyH, notch)
+                          .map((p) => `${piece.xMm + p.x},${piece.yMm + p.y}`)
+                          .join(' ');
+
+                        pieceShape = (
+                          <polygon
+                            points={points}
+                            fill="white"
+                            stroke="#1f2937"
                             strokeWidth="2"
                             opacity="0.9"
                           />
-                          
+                        );
+                      }
+
+                      return (
+                        <g key={pIdx}>
+                          {pieceShape}
+
                           {/* Inner Label Group */}
                           <g transform={textTransform}>
                             <text 
@@ -220,6 +245,7 @@ export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintPr
                         </g>
                       );
                     })}
+
                   </svg>
                 </div>
               </div>

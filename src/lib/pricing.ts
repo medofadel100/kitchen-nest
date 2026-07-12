@@ -36,7 +36,7 @@ export function calculateProjectCost(
   const { hardwareItems } = useSettingsStore.getState();
   const { projectSettings } = useProjectStore.getState();
 
-  const piecesByMaterial = projectToCutPiecesByMaterial(project.units);
+  const piecesByMaterial = projectToCutPiecesByMaterial(project.units, project.room?.obstacles);
   const sheetsRequiredByMaterial: Record<string, number> = {};
   let totalMaterialCost = 0;
   let totalEdgeBandingCost = 0;

@@ -11,8 +11,10 @@ import {
   StructuralObstacle,
   KitchenProject,
   ProjectSettings,
+  RoomWall,
 } from '@/types';
 import { findSmartUnitPlacement, snapValueToGrid } from '@/utils/geometry';
+import { getWallsFromPolygon, wallListToPolygon, snapAngleToCommon, getPolygonBoundingBox, quickRectangle, updateWallLengthInPolygon, MIN_ROOM_POLYGON_VERTICES } from '@/lib/roomGeometry';
 
 type Snapshot = {
   units: KitchenUnit[];
@@ -23,7 +25,7 @@ type Snapshot = {
   displayUnit: 'mm' | 'cm' | 'm';
   activeTool: 'select' | 'door' | 'window' | 'column' | 'measure' | 'polygon';
   isSnappingEnabled: boolean;
-  visibleWalls: { back: boolean; left: boolean; front: boolean; right: boolean };
+  visibleWalls: Record<string, boolean>;
   roomPolygonPoints: { xMm: number; yMm: number }[]; // For drawing custom room shapes
 };
 
@@ -98,11 +100,12 @@ type ProjectState = {
   displayUnit: 'mm' | 'cm' | 'm';
   activeTool: 'select' | 'door' | 'window' | 'column' | 'measure' | 'polygon';
   isSnappingEnabled: boolean;
-  visibleWalls: { back: boolean; left: boolean; front: boolean; right: boolean };
+  isOrthoMode: boolean;
+  visibleWalls: Record<string, boolean>;
   roomPolygonPoints: { xMm: number; yMm: number }[];
-  setVisibleWalls: (walls: { back?: boolean; left?: boolean; front?: boolean; right?: boolean }) => void;
-  setRoomPolygonPoints: (points: { xMm: number; yMm: number }[]) => void;
+  setVisibleWalls: (walls: Record<string, boolean>) => void;
   addRoomPolygonPoint: (point: { xMm: number; yMm: number }) => void;
+  toggleOrthoMode: () => void;
 
   // Unit Actions
   addUnit: (type: UnitType, xMm: number, yMm: number) => void;
@@ -131,6 +134,22 @@ type ProjectState = {
 
   updateRoomDetails: (id: string, updates: Partial<Room>) => void;
   completeRoomSetup: () => void;
+
+  // Room Vertex Manipulation (for non-rectangular rooms)
+  updateRoomVertex: (index: number, xMm: number, yMm: number) => void;
+  insertRoomVertex: (index: number, xMm: number, yMm: number) => void;
+  deleteRoomVertex: (index: number) => void;
+  setRoomFromWallList: (walls: { lengthMm: number; angleDeg: number }[]) => void;
+  getRoomWalls: () => RoomWall[];
+  setRoomPolygonPoints: (points: { xMm: number; yMm: number }[]) => void;
+  updateRoomPolygonPoint: (index: number, xMm: number, yMm: number) => void;
+  removeLastRoomPolygonPoint: () => void;
+  clearProject: () => void;
+  updateRoomWallLength: (wallIndex: number, newLengthMm: number) => void;
+  setRoomPolygon: (polygonMm: { xMm: number; yMm: number }[]) => void;
+  setRoomPolygonSilent: (polygonMm: { xMm: number; yMm: number }[]) => void;
+  createQuickRectangleRoom: (widthMm: number, lengthMm: number, heightMm: number) => void;
+  finishRoomPolygonDrawing: () => void;
 
   // UI
   selectElement: (id: string | null, type?: 'unit' | 'fixture' | 'obstacle', multi?: boolean) => void;
@@ -435,6 +454,7 @@ export const useProjectStore = create<ProjectState>()(
         displayUnit: 'm',
         activeTool: 'select',
         isSnappingEnabled: true,
+        isOrthoMode: true,
         visibleWalls: { back: true, left: true, front: true, right: true },
         roomPolygonPoints: [],
         setVisibleWalls: (walls) =>
@@ -442,10 +462,22 @@ export const useProjectStore = create<ProjectState>()(
             visibleWalls: { ...state.visibleWalls, ...walls },
           })),
         setRoomPolygonPoints: (points) => set({ roomPolygonPoints: points }),
+        updateRoomPolygonPoint: (index, xMm, yMm) =>
+          set((state) => {
+            const pts = [...state.roomPolygonPoints];
+            if (index < 0 || index >= pts.length) return state;
+            pts[index] = { xMm, yMm };
+            return { roomPolygonPoints: pts };
+          }),
+        removeLastRoomPolygonPoint: () =>
+          set((state) => ({
+            roomPolygonPoints: state.roomPolygonPoints.slice(0, -1),
+          })),
         addRoomPolygonPoint: (point) =>
           set((state) => ({
             roomPolygonPoints: [...state.roomPolygonPoints, point],
           })),
+        toggleOrthoMode: () => set((state) => ({ isOrthoMode: !state.isOrthoMode })),
 
         addUnit: (type, xMm, yMm) =>
           set((state) => {
@@ -722,9 +754,13 @@ export const useProjectStore = create<ProjectState>()(
           set((state) => {
             if (!state.room) return state;
             get().commitSnapshot();
-            return {
-              room: { ...state.room, ...updates },
-            };
+            const merged = { ...state.room, ...updates };
+            if (updates.polygonMm) {
+              const bbox = getPolygonBoundingBox(updates.polygonMm);
+              merged.widthMm = bbox.width;
+              merged.lengthMm = bbox.height;
+            }
+            return { room: merged };
           }),
 
         completeRoomSetup: () => set({ isRoomSetupComplete: true }),
@@ -834,6 +870,198 @@ export const useProjectStore = create<ProjectState>()(
                 : null,
             };
           }),
+
+        // Room Vertex Manipulation (for non-rectangular rooms)
+        updateRoomVertex: (index, xMm, yMm) =>
+          set((state) => {
+            if (!state.room) return state;
+            get().commitSnapshot();
+            const newPolygon = [...state.room.polygonMm];
+            if (index >= 0 && index < newPolygon.length) {
+              newPolygon[index] = { xMm, yMm };
+              const bbox = getPolygonBoundingBox(newPolygon);
+              return {
+                room: {
+                  ...state.room,
+                  polygonMm: newPolygon,
+                  widthMm: bbox.width,
+                  lengthMm: bbox.height,
+                },
+              };
+            }
+            return state;
+          }),
+
+        insertRoomVertex: (index, xMm, yMm) =>
+          set((state) => {
+            if (!state.room) return state;
+            get().commitSnapshot();
+            const newPolygon = [...state.room.polygonMm];
+            // Insert at the specified index, or at the end
+            const insertIndex = Math.min(Math.max(0, index), newPolygon.length);
+            newPolygon.splice(insertIndex, 0, { xMm, yMm });
+            return {
+              room: { ...state.room, polygonMm: newPolygon },
+            };
+          }),
+
+        deleteRoomVertex: (index) =>
+          set((state) => {
+            if (!state.room) return state;
+            // Must have at least 4 vertices to form a valid room polygon
+            if (state.room.polygonMm.length <= MIN_ROOM_POLYGON_VERTICES) return state;
+            get().commitSnapshot();
+            const newPolygon = state.room.polygonMm.filter((_, i) => i !== index);
+            return {
+              room: { ...state.room, polygonMm: newPolygon },
+            };
+          }),
+
+        setRoomFromWallList: (walls) =>
+          set((state) => {
+            if (!state.room) return state;
+            get().commitSnapshot();
+            const newPolygon = wallListToPolygon(walls);
+            // Update bounding box (widthMm/lengthMm) based on new polygon
+            const xs = newPolygon.map(p => p.xMm);
+            const ys = newPolygon.map(p => p.yMm);
+            const widthMm = Math.max(...xs) - Math.min(...xs);
+            const lengthMm = Math.max(...ys) - Math.min(...ys);
+            
+            return {
+              room: {
+                ...state.room,
+                polygonMm: newPolygon,
+                widthMm,
+                lengthMm,
+              },
+            };
+          }),
+
+        getRoomWalls: () => {
+          const state = get();
+          if (!state.room || !state.room.polygonMm) return [];
+          return getWallsFromPolygon(state.room.polygonMm);
+        },
+
+        updateRoomWallLength: (wallIndex, newLengthMm) =>
+          set((state) => {
+            if (!state.room || !state.room.polygonMm.length) return state;
+            get().commitSnapshot();
+            const newPolygon = updateWallLengthInPolygon(state.room.polygonMm, wallIndex, newLengthMm);
+            const bbox = getPolygonBoundingBox(newPolygon);
+            return {
+              room: {
+                ...state.room,
+                polygonMm: newPolygon,
+                widthMm: bbox.width,
+                lengthMm: bbox.height,
+              },
+            };
+          }),
+
+        setRoomPolygon: (polygonMm) =>
+          set((state) => {
+            if (!state.room) return state;
+            get().commitSnapshot();
+            const bbox = getPolygonBoundingBox(polygonMm);
+            return {
+              room: {
+                ...state.room,
+                polygonMm,
+                widthMm: bbox.width,
+                lengthMm: bbox.height,
+              },
+            };
+          }),
+
+        setRoomPolygonSilent: (polygonMm) =>
+          set((state) => {
+            if (!state.room) return state;
+            const bbox = getPolygonBoundingBox(polygonMm);
+            return {
+              room: {
+                ...state.room,
+                polygonMm,
+                widthMm: bbox.width,
+                lengthMm: bbox.height,
+              },
+            };
+          }),
+
+         createQuickRectangleRoom: (widthMm, lengthMm, heightMm) =>
+           set((state) => {
+             get().commitSnapshot();
+             const polygonMm = quickRectangle(widthMm, lengthMm);
+             if (state.room) {
+               return {
+                 room: {
+                   ...state.room,
+                   widthMm,
+                   lengthMm,
+                   heightMm,
+                   polygonMm,
+                 },
+                 isRoomSetupComplete: true,
+               };
+             }
+
+             const room: Room = {
+               id: `room_${Date.now()}`,
+               name: 'المطبخ',
+               widthMm,
+               lengthMm,
+               heightMm,
+               polygonMm,
+               fixtures: [],
+               obstacles: [],
+             };
+
+             return { room, isRoomSetupComplete: true };
+           }),
+
+
+
+        clearProject: () =>
+          set({
+            units: [],
+            room: null,
+            isRoomSetupComplete: false,
+            roomPolygonPoints: [],
+            selectedElement: null,
+            selectedElements: [],
+            selectedUnitId: null,
+            activeTool: 'select',
+            past: [],
+            future: [],
+            canUndo: false,
+            canRedo: false,
+            historyLog: [],
+            historyItems: [],
+          }),
+
+        finishRoomPolygonDrawing: () =>
+          set((state) => {
+            const pts = state.roomPolygonPoints;
+            const base = { roomPolygonPoints: [] as typeof pts, activeTool: 'select' as const };
+            // Allow unclosed polygons - minimum 2 points for a wall segment
+            if (pts.length >= 2 && state.room) {
+              get().commitSnapshot();
+              const bbox = getPolygonBoundingBox(pts);
+              return {
+                ...base,
+                room: {
+                  ...state.room,
+                  polygonMm: pts,
+                  widthMm: bbox.width,
+                  lengthMm: bbox.height,
+                },
+              };
+            }
+            return base;
+          }),
+
+
       };
     },
     {

@@ -1,5 +1,5 @@
 import { db } from "../firebase";
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, orderBy, where } from "firebase/firestore";
 import { KitchenProject } from "@/types";
 
 const PROJECTS_COLLECTION = "projects";
@@ -17,7 +17,7 @@ export const getProjects = async (workshopId: string = "default_workshop"): Prom
   }
 };
 
-// Fetch a single project by ID
+// Fetch a single project by ID - PUBLIC READ for share links
 export const getProjectById = async (projectId: string): Promise<KitchenProject | null> => {
   try {
     const docRef = doc(db, PROJECTS_COLLECTION, projectId);
@@ -28,6 +28,23 @@ export const getProjectById = async (projectId: string): Promise<KitchenProject 
     return null;
   } catch (error) {
     console.error("Error fetching project: ", error);
+    return null;
+  }
+};
+
+// Fetch a project by its public shareToken — آمن: Token عشوائي 16 حرف غير قابل للتخمين
+export const getProjectByShareToken = async (shareToken: string): Promise<KitchenProject | null> => {
+  try {
+    const q = query(
+      collection(db, PROJECTS_COLLECTION),
+      where("shareToken", "==", shareToken)
+    );
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const docSnap = snapshot.docs[0];
+    return { id: docSnap.id, ...docSnap.data() } as KitchenProject;
+  } catch (error) {
+    console.error("Error fetching project by shareToken: ", error);
     return null;
   }
 };

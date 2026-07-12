@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useProjectStore } from '@/store/projectStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import { X, Settings2, Save } from 'lucide-react';
+import { X, Settings2, Save, Trash2, AlertTriangle } from 'lucide-react';
 import { ProjectSettings } from '@/types';
 
 const DEFAULT_COLOR_SWATCHES = [
@@ -45,9 +45,10 @@ interface Props {
 }
 
 export const ProjectSettingsModal = ({ isOpen, onClose }: Props) => {
-  const { projectSettings, updateProjectSettings } = useProjectStore();
+  const { projectSettings, updateProjectSettings, clearProject } = useProjectStore();
   const { materials, hardwareItems } = useSettingsStore();
   const [localSettings, setLocalSettings] = useState<ProjectSettings>(projectSettings);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   if (!isOpen) return null;
 
@@ -274,6 +275,45 @@ export const ProjectSettingsModal = ({ isOpen, onClose }: Props) => {
           <p className="text-xs text-emerald-400/90 bg-emerald-950/30 p-3 rounded-lg border border-emerald-900/50">
             ملاحظة: يمكنك اختيار تطبيق هذه الإعدادات على <strong>الوحدات الجديدة</strong> فقط، أو تحديث <strong>جميع الوحدات الحالية</strong> في المشروع لتتطابق مع هذه المقاسات والخامات.
           </p>
+
+          {/* Danger zone */}
+          <section className="border border-red-500/30 rounded-xl p-4 bg-red-950/20">
+            <h3 className="text-sm font-bold text-red-400 mb-2 flex items-center gap-2">
+              <AlertTriangle size={16} />
+              منطقة خطرة
+            </h3>
+            <p className="text-xs text-zinc-400 mb-3">
+              مسح المشروع بالكامل — يحذف الغرفة، كل الوحدات، الفتحات، والأعمدة. لا يمكن التراجع.
+            </p>
+            {!showClearConfirm ? (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-colors text-sm font-bold"
+              >
+                <Trash2 size={16} />
+                مسح المشروع كله
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    clearProject();
+                    setShowClearConfirm(false);
+                    onClose();
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors"
+                >
+                  نعم، امسح كل شيء
+                </button>
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-bold transition-colors"
+                >
+                  إلغاء
+                </button>
+              </div>
+            )}
+          </section>
 
         </div>
 

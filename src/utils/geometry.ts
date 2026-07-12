@@ -1,4 +1,5 @@
-import { KitchenUnit, Room } from '@/types';
+import { KitchenUnit, Room, RoomFixture, StructuralObstacle } from '@/types';
+import { getWallsFromPolygon, getFixtureWorldPosition, getWallContainingPoint } from '@/lib/roomGeometry';
 
 // Represents an axis-aligned bounding box
 export interface BoundingBox {
@@ -62,7 +63,6 @@ export const getUnitBoundingBoxes = (
 
     const rotatedCorners = corners.map(c => {
       // Rotation matrix for 2D
-      // Since canvas Y is down, standard rotation matrix works if we consider the axes
       const rx = c.lx * cos - c.ly * sin;
       const ry = c.lx * sin + c.ly * cos;
       return { x: cx + rx, y: cy + ry };
@@ -85,6 +85,10 @@ export const snapValueToGrid = (value: number, gridMm = 10): number => {
   return Math.round(value / gridMm) * gridMm;
 };
 
+/**
+ * Snap a unit to the nearest room wall with proper rotation
+ * تلزق الوحدة في أقرب جدار مع ضبط الزاوية
+ */
 export const snapUnitToRoom = (
   unit: KitchenUnit,
   xMm: number,
@@ -113,6 +117,197 @@ export const snapUnitToRoom = (
 
   return { xMm: snappedX, yMm: snappedY };
 };
+
+/**
+ * Enhanced snap to room walls - also returns the wall angle for rotation
+ * تلزق متقدمة مع إرجاع زاوية الجدار
+ */
+export const snapUnitToRoomWithAngle = (
+  unit: KitchenUnit,
+  xMm: number,
+  yMm: number,
+  room: Room,
+  thresholdMm = 80
+): { xMm: number; yMm: number; rotationDeg: number } => {
+  const walls = getWallsFromPolygon(room.polygonMm);
+  let bestWall: { xMm: number; yMm: number; rotationDeg: number } | null = null;
+  let minDist = thresholdMm;
+
+  const unitCenterX = xMm + unit.dimensions.widthMm / 2;
+  const unitCenterY = yMm + unit.dimensions.depthMm / 2;
+
+  for (const wall of walls) {
+    // Calculate distance from unit center to wall
+    const dist = pointToLineDistance(
+      { xMm: unitCenterX, yMm: unitCenterY },
+      wall.startPoint,
+      wall.endPoint
+    );
+
+    if (dist < minDist) {
+      minDist = dist;
+      
+      // Calculate the wall angle (perpendicular to the wall for the unit to face it)
+      const wallAngleDeg = wall.angleDeg;
+      
+      // Project the unit onto the wall
+      const proj = projectPointOnLine(
+        { xMm: unitCenterX, yMm: unitCenterY },
+        wall.startPoint,
+        wall.endPoint
+      );
+
+      // Calculate the unit position so its back is against the wall
+      const depthMm = unit.dimensions.depthMm;
+      const rad = wallAngleDeg * (Math.PI / 180);
+      
+      // The unit should be placed with its back to the wall
+      // For a wall at angle θ, the unit's back face should be at the wall
+      // The unit's front face is at the bottom of the rect (depth direction)
+      // So we offset by depth perpendicular to the wall
+      const perpAngle = wallAngleDeg + 90; // Perpendicular to wall
+      const perpRad = perpAngle * (Math.PI / 180);
+      
+      let newX = proj.xMm - (unit.dimensions.widthMm / 2) * Math.cos(rad) + (depthMm / 2) * Math.cos(perpRad);
+      let newY = proj.yMm - (unit.dimensions.widthMm / 2) * Math.sin(rad) + (depthMm / 2) * Math.sin(perpRad);
+
+      // The rotation of the unit should be perpendicular to the wall
+      // If wall is horizontal (0°), unit should be 90° (facing up)
+      // If wall is vertical (90°), unit should be 0° (facing right)
+      const unitRotation = (wallAngleDeg + 90) % 360;
+
+      bestWall = { xMm: newX, yMm: newY, rotationDeg: unitRotation };
+    }
+  }
+
+  if (bestWall) {
+    return bestWall;
+  }
+
+  // Fall back to basic snap
+  const basicSnap = snapUnitToRoom(unit, xMm, yMm, room, thresholdMm);
+  return { ...basicSnap, rotationDeg: unit.position.rotationDeg || 0 };
+};
+
+/**
+ * Snap a fixture (door/window) to the nearest wall with proper rotation
+ * تلزق الباب أو الشباك في أقرب جدار مع ضبط الزاوية
+ */
+export const snapFixtureToWall = (
+  fixture: { xMm: number; yMm: number; widthMm: number; rotationDeg?: number },
+  room: Room,
+  thresholdMm = 200
+): { xMm: number; yMm: number; rotationDeg: number } => {
+  const walls = getWallsFromPolygon(room.polygonMm);
+  let bestWall: { xMm: number; yMm: number; rotationDeg: number } | null = null;
+  let minDist = thresholdMm;
+
+  const fixtureCenterX = fixture.xMm + fixture.widthMm / 2;
+  const fixtureCenterY = fixture.yMm;
+
+  for (const wall of walls) {
+    const dist = pointToLineDistance(
+      { xMm: fixtureCenterX, yMm: fixtureCenterY },
+      wall.startPoint,
+      wall.endPoint
+    );
+
+    if (dist < minDist) {
+      minDist = dist;
+      
+      // Project fixture center onto the wall
+      const proj = projectPointOnLine(
+        { xMm: fixtureCenterX, yMm: fixtureCenterY },
+        wall.startPoint,
+        wall.endPoint
+      );
+
+      // The fixture should be placed ON the wall
+      // Its rotation should match the wall angle
+      const newX = proj.xMm - fixture.widthMm / 2;
+      const newY = proj.yMm;
+
+      bestWall = { 
+        xMm: newX, 
+        yMm: newY, 
+        rotationDeg: wall.angleDeg 
+      };
+    }
+  }
+
+  if (bestWall) {
+    return bestWall;
+  }
+
+  return { 
+    xMm: fixture.xMm, 
+    yMm: fixture.yMm, 
+    rotationDeg: fixture.rotationDeg || 0 
+  };
+};
+
+/**
+ * Calculate distance from point to line segment
+ */
+function pointToLineDistance(
+  point: { xMm: number; yMm: number },
+  lineStart: { xMm: number; yMm: number },
+  lineEnd: { xMm: number; yMm: number }
+): number {
+  const A = point.xMm - lineStart.xMm;
+  const B = point.yMm - lineStart.yMm;
+  const C = lineEnd.xMm - lineStart.xMm;
+  const D = lineEnd.yMm - lineStart.yMm;
+
+  const dot = A * C + B * D;
+  const lenSq = C * C + D * D;
+  let param = -1;
+  
+  if (lenSq !== 0) {
+    param = dot / lenSq;
+  }
+
+  let xx, yy;
+
+  if (param < 0) {
+    xx = lineStart.xMm;
+    yy = lineStart.yMm;
+  } else if (param > 1) {
+    xx = lineEnd.xMm;
+    yy = lineEnd.yMm;
+  } else {
+    xx = lineStart.xMm + param * C;
+    yy = lineStart.yMm + param * D;
+  }
+
+  const dx = point.xMm - xx;
+  const dy = point.yMm - yy;
+  
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Project a point onto a line segment
+ */
+function projectPointOnLine(
+  point: { xMm: number; yMm: number },
+  lineStart: { xMm: number; yMm: number },
+  lineEnd: { xMm: number; yMm: number }
+): { xMm: number; yMm: number } {
+  const dx = lineEnd.xMm - lineStart.xMm;
+  const dy = lineEnd.yMm - lineStart.yMm;
+  const lenSq = dx * dx + dy * dy;
+  
+  if (lenSq === 0) return lineStart;
+  
+  const t = ((point.xMm - lineStart.xMm) * dx + (point.yMm - lineStart.yMm) * dy) / lenSq;
+  const clampedT = Math.max(0, Math.min(1, t));
+  
+  return {
+    xMm: lineStart.xMm + clampedT * dx,
+    yMm: lineStart.yMm + clampedT * dy,
+  };
+}
 
 export const snapUnitToNeighbors = (
   unit: KitchenUnit,
@@ -220,8 +415,6 @@ const buildOccupancyGrid = (
     const boxes = getUnitBoundingBoxes(other);
 
     for (const box of boxes) {
-      // Same elevation rule as collision checks: walls/loft may exist at different z.
-      // occupancy grid is for 2D placement so we only mark 2D boxes.
       markBox(box);
     }
   }
@@ -244,7 +437,6 @@ const isCandidateCellFreeForUnit = (
 
   const boxes = getUnitBoundingBoxes(unit, xMm, yMm);
 
-  // Require all covered cells to be free.
   for (const box of boxes) {
     const left = Math.floor((box.left - bufferMm) / gridMm);
     const right = Math.floor((box.right + bufferMm) / gridMm);
@@ -264,13 +456,8 @@ const isCandidateCellFreeForUnit = (
     }
   }
 
-  // Final exact collision check is still done later.
   return isUnitInsideRoom(unit, xMm, yMm, room);
 };
-
-
-// NOTE: Nudge/Align/Distribute can be layered on top of findSmartUnitPlacement.
-// For now, keep geometry helpers focused on placement safety.
 
 
 export const findSmartUnitPlacement = (
@@ -303,7 +490,6 @@ export const findSmartUnitPlacement = (
     const clamped = clampUnitToRoom(unit, xMm, yMm, room);
     if (!isUnitInsideRoom(unit, clamped.xMm, clamped.yMm, room)) return;
 
-    // Cheap pre-check via occupancy grid
     if (!isCandidateCellFreeForUnit(unit, room, occupancy.grid, gridMm, occupancy.cols, occupancy.rows, clamped.xMm, clamped.yMm, 0)) return;
 
     if (checkUnitCollision(unit, allUnits, clamped.xMm, clamped.yMm)) return;
@@ -312,7 +498,7 @@ export const findSmartUnitPlacement = (
     candidates.push({ xMm: clamped.xMm, yMm: clamped.yMm, score });
   };
 
-  // 1) First try start-based seeds (existing behavior)
+  // 1) First try start-based seeds
   addCandidate(startX, startY);
   addCandidate(snappedStartX, snappedStartY);
   addCandidate(0, snappedStartY);
@@ -340,9 +526,7 @@ export const findSmartUnitPlacement = (
     }
   }
 
-  // 3) Fallback: neighbor-derived candidates (kept for robustness)
-
-
+  // 3) Neighbor-derived candidates
   for (const other of allUnits) {
     if (other.id === unit.id) continue;
     const otherBoxes = getUnitBoundingBoxes(other);
@@ -358,7 +542,7 @@ export const findSmartUnitPlacement = (
     }
   }
 
-  // 4) Original small radius local perturbations
+  // 4) Local perturbations
   const radiusSteps = 2;
   for (let dx = -radiusSteps; dx <= radiusSteps; dx += 1) {
     for (let dy = -radiusSteps; dy <= radiusSteps; dy += 1) {
@@ -379,8 +563,6 @@ export const findSmartUnitPlacement = (
  * Checks if two axis-aligned bounding boxes overlap.
  */
 export const doBoxesOverlap = (b1: BoundingBox, b2: BoundingBox): boolean => {
-  // Allow touching edges (e.g., adjacent units) by using strict inequality `<` or a tiny margin.
-  // We use a small epsilon (1mm) to prevent adjacent units from being marked as colliding.
   const EPSILON = 1;
   return !(
     b1.right <= b2.left + EPSILON ||
@@ -393,6 +575,33 @@ export const doBoxesOverlap = (b1: BoundingBox, b2: BoundingBox): boolean => {
 /**
  * Checks if a unit overlaps with any unit in a given list.
  */
+/**
+ * Checks if a unit's bounding box overlaps with any StructuralObstacle in the room.
+ * Returns the first overlapping obstacle, or null if none.
+ */
+export const checkUnitObstacleOverlap = (
+  unit: KitchenUnit,
+  obstacles: StructuralObstacle[],
+  overrideXMm?: number,
+  overrideYMm?: number
+): StructuralObstacle | null => {
+  const boxes = getUnitBoundingBoxes(unit, overrideXMm, overrideYMm);
+  const unitLeft = Math.min(...boxes.map(b => b.left));
+  const unitRight = Math.max(...boxes.map(b => b.right));
+  const unitTop = Math.min(...boxes.map(b => b.top));
+  const unitBottom = Math.max(...boxes.map(b => b.bottom));
+
+  for (const obs of obstacles) {
+    const obsLeft = obs.xMm;
+    const obsRight = obs.xMm + obs.widthMm;
+    const obsTop = obs.yMm;
+    const obsBottom = obs.yMm + obs.depthMm;
+    const overlaps = unitLeft < obsRight && unitRight > obsLeft && unitTop < obsBottom && unitBottom > obsTop;
+    if (overlaps) return obs;
+  }
+  return null;
+};
+
 export const checkUnitCollision = (
   targetUnit: KitchenUnit, 
   allUnits: KitchenUnit[],
@@ -404,17 +613,13 @@ export const checkUnitCollision = (
   for (const other of allUnits) {
     if (other.id === targetUnit.id) continue;
     
-    // Ignore wall units colliding with base units? Yes!
-    // Wall units are usually on z=1500, base units on z=0.
-    // If they are on different elevations, they don't collide.
     const z1 = targetUnit.position.zMm || (targetUnit.type.includes('wall') ? 1500 : (targetUnit.type === 'loft' ? 2200 : 0));
     const z2 = other.position.zMm || (other.type.includes('wall') ? 1500 : (other.type === 'loft' ? 2200 : 0));
     const h1 = targetUnit.dimensions.heightMm;
     const h2 = other.dimensions.heightMm;
     
-    // Z-axis overlap check
     const zOverlap = !(z1 + h1 <= z2 || z1 >= z2 + h2);
-    if (!zOverlap) continue; // They are safely above/below each other
+    if (!zOverlap) continue;
 
     const otherBoxes = getUnitBoundingBoxes(other);
     

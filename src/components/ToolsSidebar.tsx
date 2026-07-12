@@ -1,18 +1,86 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useProjectStore } from '@/store/projectStore';
-import { UnitType } from '@/types';
-import { Box, Layers, ArrowUpFromLine, CornerDownRight, Trash2, Square, DoorOpen, LayoutGrid, Ruler, Magnet, EyeOff } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { UnitType, FixtureType } from '@/types';
+import { 
+  Box, Layers, ArrowUpFromLine, CornerDownRight, Trash2, 
+  Square, DoorOpen, LayoutGrid, Ruler, Magnet, EyeOff, MoveHorizontal,
+  Refrigerator as FridgeIcon, Snowflake, Flame, ChefHat, Utensils, 
+  WashingMachine as WashMachine, Wind, Package,
+  Columns, Home, Sofa, Lamp, Paintbrush, 
+
+  ChevronDown, ChevronUp, Palette, RotateCw
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { convertMmToDisplayUnit, convertDisplayUnitToMm } from '@/utils/measurements';
 import { findSmartUnitPlacement } from '@/utils/geometry';
+import { RoomWallEditor } from './RoomWallEditor';
+import { QuickRectangleModal } from './QuickRectangleModal';
+import { RoomPropertiesPanel } from './RoomPropertiesPanel';
+
+interface ToolItem {
+  type: string;
+  label: string;
+  icon: any;
+  color: string;
+  bgColor: string;
+  category: 'arch' | 'unit' | 'appliance';
+}
 
 export const ToolsSidebar = () => {
-  const { addUnit, units, selectedUnitId, deleteUnit, activeTool, setActiveTool, displayUnit, isSnappingEnabled, toggleSnapping, room, historyVisible, toggleHistoryVisible } = useProjectStore();
+  const { 
+    addUnit, units, selectedUnitId, deleteUnit, activeTool, setActiveTool, 
+    displayUnit, isSnappingEnabled, toggleSnapping, room, 
+    historyVisible, toggleHistoryVisible, isOrthoMode, toggleOrthoMode,
+    selectedElement
+  } = useProjectStore();
+  const [showQuickRect, setShowQuickRect] = React.useState(false);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>('unit');
 
-  const handleAddUnit = (type: UnitType) => {
-    // وضع الوحدة بشكل ذكي بحيث تتحاذى مع الحائط دون التصادم أو الخروج من الغرفة
+  const selectedUnit = units.find(u => u.id === selectedUnitId);
+
+  // All tools grouped for the grid
+  const archTools: ToolItem[] = [
+    { type: 'select', label: 'تحديد', icon: Box, color: 'text-zinc-400', bgColor: 'from-zinc-900 to-zinc-950', category: 'arch' },
+    { type: 'door', label: 'باب', icon: DoorOpen, color: 'text-sky-400', bgColor: 'from-sky-900/50 to-sky-950/50', category: 'arch' },
+    { type: 'window', label: 'شباك', icon: LayoutGrid, color: 'text-indigo-400', bgColor: 'from-indigo-900/50 to-indigo-950/50', category: 'arch' },
+    { type: 'column', label: 'عمود', icon: Square, color: 'text-red-400', bgColor: 'from-red-900/50 to-red-950/50', category: 'arch' },
+    { type: 'measure', label: 'قياس', icon: Ruler, color: 'text-amber-400', bgColor: 'from-amber-900/50 to-amber-950/50', category: 'arch' },
+    { type: 'polygon', label: 'رسم غرفة', icon: Square, color: 'text-emerald-400', bgColor: 'from-emerald-900/50 to-emerald-950/50', category: 'arch' },
+
+  ];
+
+  const unitTools: ToolItem[] = [
+    { type: 'base', label: 'أرضية', icon: Box, color: 'text-blue-400', bgColor: 'from-blue-900/50 to-blue-950/50', category: 'unit' },
+    { type: 'wall', label: 'معلقة', icon: Layers, color: 'text-emerald-400', bgColor: 'from-emerald-900/50 to-emerald-950/50', category: 'unit' },
+    { type: 'tall', label: 'طولية', icon: ArrowUpFromLine, color: 'text-purple-400', bgColor: 'from-purple-900/50 to-purple-950/50', category: 'unit' },
+    { type: 'drawer_unit', label: 'أدراج', icon: Layers, color: 'text-amber-400', bgColor: 'from-amber-900/50 to-amber-950/50', category: 'unit' },
+    { type: 'corner_base', label: 'ركن أرضي', icon: CornerDownRight, color: 'text-pink-400', bgColor: 'from-pink-900/50 to-pink-950/50', category: 'unit' },
+    { type: 'corner_wall', label: 'ركن معلق', icon: CornerDownRight, color: 'text-teal-400', bgColor: 'from-teal-900/50 to-teal-950/50', category: 'unit' },
+    { type: 'loft', label: 'قلاب', icon: ArrowUpFromLine, color: 'text-indigo-400', bgColor: 'from-indigo-900/50 to-indigo-950/50', category: 'unit' },
+  ];
+
+  const applianceTools: ToolItem[] = [
+    { type: 'fridge', label: 'ثلاجة', icon: FridgeIcon, color: 'text-cyan-400', bgColor: 'from-cyan-900/50 to-cyan-950/50', category: 'appliance' },
+    { type: 'freezer', label: 'فريزر', icon: Snowflake, color: 'text-blue-400', bgColor: 'from-blue-900/50 to-blue-950/50', category: 'appliance' },
+    { type: 'oven', label: 'فرن', icon: Flame, color: 'text-orange-400', bgColor: 'from-orange-900/50 to-orange-950/50', category: 'appliance' },
+    { type: 'stove', label: 'بوتاجاز', icon: ChefHat, color: 'text-red-400', bgColor: 'from-red-900/50 to-red-950/50', category: 'appliance' },
+    { type: 'dishwasher', label: 'غسالة أطباق', icon: Utensils, color: 'text-teal-400', bgColor: 'from-teal-900/50 to-teal-950/50', category: 'appliance' },
+    { type: 'sink', label: 'حوض', icon: Package, color: 'text-emerald-400', bgColor: 'from-emerald-900/50 to-emerald-950/50', category: 'appliance' },
+    { type: 'washing_machine', label: 'غسالة', icon: WashMachine, color: 'text-indigo-400', bgColor: 'from-indigo-900/50 to-indigo-950/50', category: 'appliance' },
+    { type: 'dryer', label: 'مجفف', icon: Wind, color: 'text-purple-400', bgColor: 'from-purple-900/50 to-purple-950/50', category: 'appliance' },
+  ];
+
+  const handleArchToolClick = (type: string) => {
+    if (type === 'select' || type === 'measure' || type === 'polygon') {
+      setActiveTool(type as any);
+    } else if (type === 'door' || type === 'window' || type === 'column') {
+      setActiveTool(type as any);
+    }
+  };
+
+  const handleUnitClick = (type: string) => {
     const settings = useProjectStore.getState().projectSettings;
     const baseX = room ? Math.max(50, (room.widthMm / 2) - 300) : 1000;
     const baseY = 0;
@@ -23,16 +91,12 @@ export const ToolsSidebar = () => {
     if (room) {
       const newUnit = {
         id: `unit_temp`,
-        type,
+        type: type as UnitType,
         position: { xMm: baseX, yMm: baseY, zMm: 0, rotationDeg: 0 },
         dimensions: {
-          widthMm: type === 'base' || type === 'drawer_unit' || type === 'corner_base' || type === 'corner_tall' ? 600 : type === 'wall' || type === 'loft' ? 600 : 900,
-          depthMm: type === 'base' || type === 'drawer_unit' ? settings.defaultBaseDepthMm : type === 'wall' ? settings.defaultWallDepthMm : type === 'loft' ? settings.defaultLoftDepthMm : 900,
+          widthMm: 600,
+          depthMm: 600,
           heightMm: 0,
-          ...(type.startsWith('corner') ? {
-            leftLegCarcassDepthMm: type === 'corner_wall' ? settings.defaultWallDepthMm : settings.defaultBaseDepthMm,
-            rightLegCarcassDepthMm: type === 'corner_wall' ? settings.defaultWallDepthMm : settings.defaultBaseDepthMm,
-          } : {})
         },
         materialId: settings.defaultMaterialId,
         colorHex: settings.defaultBaseColor,
@@ -51,862 +115,410 @@ export const ToolsSidebar = () => {
       defaultY = placement.yMm;
     }
 
-    addUnit(type, defaultX, defaultY);
+    addUnit(type as UnitType, defaultX, defaultY);
   };
 
-  const selectedUnit = units.find(u => u.id === selectedUnitId);
+  const handleApplianceClick = (tool: ToolItem) => {
+    const settings = useProjectStore.getState().projectSettings;
+    const baseX = room ? Math.max(50, (room.widthMm / 2) - 300) : 1000;
+    const baseY = 0;
 
-  const kitchenTools = [
-    { type: 'base' as UnitType, label: 'وحدة أرضية', icon: Box, color: 'text-blue-400', bgHover: 'hover:bg-blue-500/10 hover:border-blue-500/50' },
-    { type: 'wall' as UnitType, label: 'وحدة معلقة', icon: Layers, color: 'text-emerald-400', bgHover: 'hover:bg-emerald-500/10 hover:border-emerald-500/50' },
-    { type: 'tall' as UnitType, label: 'وحدة طولية (Tall)', icon: ArrowUpFromLine, color: 'text-purple-400', bgHover: 'hover:bg-purple-500/10 hover:border-purple-500/50' },
-    { type: 'drawer_unit' as UnitType, label: 'وحدة أدراج', icon: Layers, color: 'text-amber-400', bgHover: 'hover:bg-amber-500/10 hover:border-amber-500/50' },
-    { type: 'corner_base' as UnitType, label: 'وحدة ركن (L-Shape) أرضية', icon: CornerDownRight, color: 'text-pink-400', bgHover: 'hover:bg-pink-500/10 hover:border-pink-500/50' },
-    { type: 'corner_wall' as UnitType, label: 'وحدة ركن (L-Shape) معلقة', icon: CornerDownRight, color: 'text-teal-400', bgHover: 'hover:bg-teal-500/10 hover:border-teal-500/50' },
-    { type: 'corner_tall' as UnitType, label: 'وحدة ركن (L-Shape) طولية', icon: CornerDownRight, color: 'text-fuchsia-400', bgHover: 'hover:bg-fuchsia-500/10 hover:border-fuchsia-500/50' },
-    { type: 'loft' as UnitType, label: 'وحدة قلاب (مستوى ثاني)', icon: ArrowUpFromLine, color: 'text-indigo-400', bgHover: 'hover:bg-indigo-500/10 hover:border-indigo-500/50' },
-  ];
+    let defaultX = baseX;
+    let defaultY = baseY;
 
-  const archTools = [
-    { type: 'select', label: 'تحديد', icon: Box, color: 'text-zinc-400' },
-    { type: 'measure', label: 'شريط القياس', icon: Ruler, color: 'text-zinc-400' },
-    { type: 'column', label: 'إضافة عمود / بروز', icon: Square, color: 'text-red-400' },
-    { type: 'door', label: 'إضافة باب', icon: DoorOpen, color: 'text-sky-400' },
-    { type: 'window', label: 'إضافة شباك', icon: LayoutGrid, color: 'text-sky-400' },
-    { type: 'polygon', label: 'رسم الغرفة', icon: Square, color: 'text-orange-400' },
-  ];
+    let widthMm = 600, depthMm = 600, heightMm = 850;
+    switch(tool.type) {
+      case 'fridge': widthMm = 700; depthMm = 700; heightMm = 1800; break;
+      case 'freezer': widthMm = 600; depthMm = 600; heightMm = 1800; break;
+      case 'oven': widthMm = 600; depthMm = 600; heightMm = 900; break;
+      case 'stove': widthMm = 600; depthMm = 600; heightMm = 900; break;
+      case 'dishwasher': widthMm = 600; depthMm = 600; heightMm = 850; break;
+      case 'washing_machine': widthMm = 600; depthMm = 600; heightMm = 850; break;
+      case 'dryer': widthMm = 600; depthMm = 600; heightMm = 850; break;
+      case 'sink': widthMm = 700; depthMm = 600; heightMm = 850; break;
+    }
+
+    if (room) {
+      const newUnit = {
+        id: `unit_temp`,
+        type: 'base' as UnitType,
+        position: { xMm: baseX, yMm: baseY, zMm: 0, rotationDeg: 0 },
+        dimensions: { widthMm, depthMm, heightMm },
+        materialId: settings.defaultMaterialId,
+        colorHex: settings.defaultBaseColor,
+        doorMaterialId: settings.defaultDoorMaterialId,
+        doorColorHex: settings.defaultBaseDoorColor,
+        doorCount: 0, drawerCount: 0, shelfCount: 0,
+        hingeType: settings.defaultHingeId,
+        handleType: settings.defaultHandleId,
+        hasLedProfile: false,
+      } as any;
+      const placement = findSmartUnitPlacement(newUnit, room, useProjectStore.getState().units, baseX, baseY, 50, 80);
+      defaultX = placement.xMm;
+      defaultY = placement.yMm;
+    }
+
+    const unitId = `unit_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const newUnit: any = {
+      id: unitId, type: 'base',
+      label: tool.label,
+      position: { xMm: defaultX, yMm: defaultY, zMm: 0, rotationDeg: 0 },
+      dimensions: { widthMm, depthMm, heightMm },
+      materialId: settings.defaultMaterialId,
+      colorHex: settings.defaultBaseColor,
+      doorMaterialId: settings.defaultDoorMaterialId,
+      doorColorHex: settings.defaultBaseDoorColor,
+      doorCount: 0, drawerCount: 0, shelfCount: 0,
+      hingeType: settings.defaultHingeId,
+      handleType: settings.defaultHandleId,
+      hasLedProfile: false,
+    };
+
+    useProjectStore.getState().commitSnapshot();
+    useProjectStore.setState((state) => ({
+      units: [...state.units, newUnit],
+      selectedUnitId: unitId,
+      selectedElement: { id: unitId, type: 'unit' },
+      selectedElements: [{ id: unitId, type: 'unit' }],
+    }));
+  };
+
+  const handleToolClick = (tool: ToolItem) => {
+    if (tool.category === 'arch') {
+      handleArchToolClick(tool.type);
+    } else if (tool.category === 'unit') {
+      handleUnitClick(tool.type);
+    } else if (tool.category === 'appliance') {
+      handleApplianceClick(tool);
+    }
+  };
+
+  const isToolActive = (tool: ToolItem): boolean => {
+    if (tool.category === 'arch') {
+      return activeTool === tool.type;
+    }
+    return false;
+  };
+
+  const getFixtureType = (): 'door' | 'window' | 'column' | null => {
+    if (!selectedElement) return null;
+    if (selectedElement.type === 'fixture') {
+      const fixture = room?.fixtures.find(f => f.id === selectedElement.id);
+      if (fixture?.type === 'door' || fixture?.type === 'balcony_door') return 'door';
+      if (fixture?.type === 'window') return 'window';
+    }
+    if (selectedElement.type === 'obstacle') return 'column';
+    return null;
+  };
+
+  // Count units by label for display
+  const unitCounts = {
+    base: units.filter(u => u.type === 'base').length,
+    wall: units.filter(u => u.type === 'wall').length,
+    tall: units.filter(u => u.type === 'tall').length,
+    appliances: units.filter(u => u.label && !['base','wall','tall','drawer_unit','loft','corner_base','corner_wall','corner_tall'].includes(u.type)).length,
+  };
 
   return (
-    <div className="w-72 bg-zinc-950/80 backdrop-blur-2xl border-l border-zinc-800/80 p-5 h-full flex flex-col shadow-2xl shrink-0 z-20">
+    <div className="w-80 bg-gradient-to-b from-zinc-950 to-zinc-900 backdrop-blur-2xl border-l border-zinc-800/80 p-4 h-full flex flex-col shadow-2xl shrink-0 z-20 overflow-y-auto custom-scrollbar">
       
-      <div className="mb-6">
-        <h2 className="text-sm font-bold text-zinc-500 mb-3 flex items-center gap-2">
-          أدوات المعمار والقياس
+      {/* Header */}
+      <div className="mb-4 text-center">
+        <h1 className="text-lg font-black text-white tracking-tight">
+          <span className="text-emerald-400">Kitchen</span>Nest
+        </h1>
+        <p className="text-[10px] text-zinc-600 font-medium">مُصمِّم المطابخ الذكي</p>
+      </div>
+
+      {/* ===== MAIN TOOLS GRID ===== */}
+      <div className="mb-4">
+        <h2 className="text-xs font-bold text-zinc-500 mb-3 flex items-center gap-2">
+          <Box size={12} />
+          أدوات الغرفة والمعمار
         </h2>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
           {archTools.map((tool) => {
             const Icon = tool.icon;
-            const isActive = activeTool === tool.type;
+            const isActive = isToolActive(tool);
             return (
               <button
                 key={tool.type}
-                onClick={() => setActiveTool(isActive ? 'select' : (tool.type as any))}
-                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
+                onClick={() => handleToolClick(tool)}
+                className={`relative flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all duration-200 overflow-hidden group ${
                   isActive 
-                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' 
-                    : `bg-zinc-900/50 border-zinc-800/50 ${tool.color} hover:bg-zinc-800 hover:text-white`
+                    ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]' 
+                    : `bg-gradient-to-br ${tool.bgColor} border-zinc-800/60 text-zinc-500 hover:border-zinc-600 hover:text-white hover:shadow-lg`
                 }`}
               >
-                <Icon size={24} className="mb-2" />
-                <span className="text-xs font-bold text-center leading-tight mt-2">{tool.label}</span>
+                {/* Hover glow */}
+                <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"></div>
+                <Icon size={18} className="mb-1 relative z-10" />
+                <span className="text-[10px] font-bold text-center leading-tight relative z-10">{tool.label}</span>
+                {isActive && (
+                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-zinc-950"></div>
+                )}
               </button>
             );
           })}
         </div>
-        
+      </div>
+
+      {/* Quick Settings Bar */}
+      <div className="flex items-center gap-1 mb-4 p-2 bg-zinc-900/80 rounded-xl border border-zinc-800/50">
+        <button
+          onClick={toggleOrthoMode}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[9px] font-bold transition-all ${
+            isOrthoMode
+              ? 'bg-sky-500/15 text-sky-400 border border-sky-500/30'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
+          }`}
+        >
+          <MoveHorizontal size={12} />
+          <span>Ortho</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${isOrthoMode ? 'bg-sky-400' : 'bg-zinc-600'}`}></span>
+        </button>
         <button
           onClick={toggleSnapping}
-          className={`mt-2 w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-300 ${
-            isSnappingEnabled 
-              ? 'bg-amber-500/10 border-amber-500/50 text-amber-400' 
-              : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-zinc-400'
+          className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[9px] font-bold transition-all ${
+            isSnappingEnabled
+              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
           }`}
         >
-          <span className="text-xs font-bold flex items-center gap-2">
-            <Magnet size={16} className={isSnappingEnabled ? 'text-amber-400' : 'text-zinc-500'} />
-            المغناطيس (Snapping)
-          </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/20">
-            {isSnappingEnabled ? 'ON' : 'OFF'}
-          </span>
+          <Magnet size={12} />
+          <span>Snap</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${isSnappingEnabled ? 'bg-amber-400' : 'bg-zinc-600'}`}></span>
         </button>
-
         <button
-          onClick={() => toggleHistoryVisible()}
-          className={`mt-2 w-full flex items-center justify-between p-3 rounded-xl border transition-all duration-300 ${
-            historyVisible
-              ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
-              : 'bg-zinc-900/50 border-zinc-800 text-zinc-400 hover:bg-zinc-800 hover:text-white'
-          }`}
+          onClick={() => setShowQuickRect(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[9px] font-bold text-orange-400 hover:bg-orange-500/10 transition-all"
         >
-          <span className="text-xs font-bold flex items-center gap-2">
-            🕘
-            سجل الحركات
-          </span>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-black/20">
-            {historyVisible ? 'مخفي' : 'عائم'}
-          </span>
+          <Square size={12} />
+          <span>سريع</span>
         </button>
+      </div>
 
-        <button
-          onClick={useProjectStore.getState().showAllHiddenElements}
-          className="mt-2 w-full flex items-center justify-between p-3 rounded-xl border border-zinc-800 bg-zinc-900/50 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all duration-300"
-        >
-          <span className="text-xs font-bold flex items-center gap-2">
-            <EyeOff size={16} />
-            إظهار كل المخفي
-          </span>
-        </button>
+      {/* ===== UNITS & APPLIANCES SECTION ===== */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-0.5 custom-scrollbar space-y-4">
+        
+        {/* Units Grid */}
+        <div>
+          <button
+            onClick={() => setExpandedCategory(expandedCategory === 'unit' ? null : 'unit')}
+            className="w-full flex items-center justify-between text-xs font-bold text-zinc-500 mb-2 hover:text-zinc-300 transition-colors"
+          >
+            <span className="flex items-center gap-1.5">
+              <Layers size={12} />
+              وحدات المطبخ
+              {units.length > 0 && (
+                <span className="bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded text-[9px]">{units.length}</span>
+              )}
+            </span>
+            {expandedCategory === 'unit' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          
+          <AnimatePresence>
+            {expandedCategory === 'unit' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-2 gap-1.5">
+                  {unitTools.map((tool) => {
+                    const Icon = tool.icon;
+                    return (
+                      <button
+                        key={tool.type}
+                        onClick={() => handleToolClick(tool)}
+                        className="relative flex items-center gap-2.5 p-2.5 bg-gradient-to-br from-zinc-900/80 to-zinc-950/80 border border-zinc-800/50 rounded-xl transition-all duration-200 hover:border-zinc-600 hover:shadow-lg group text-right"
+                      >
+                        <div className={`p-1.5 rounded-lg bg-gradient-to-br ${tool.bgColor} border border-zinc-800/50 group-hover:border-zinc-700/50 transition-colors`}>
+                          <Icon size={14} className={tool.color} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-bold text-zinc-300 group-hover:text-white transition-colors leading-tight truncate">{tool.label}</div>
+                          <div className="text-[8px] text-zinc-600 font-mono">مقاس قياسي</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-        {/* Wall Visibility Controls */}
-        <div className="mt-4">
-          <h3 className="text-xs font-bold text-zinc-500 mb-2">إظهار الجدران</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { key: 'back', label: 'الخلفية' },
-              { key: 'left', label: 'اليسار' },
-              { key: 'front', label: 'الأمام' },
-              { key: 'right', label: 'اليمين' },
-            ].map((wall) => {
-              const { visibleWalls, setVisibleWalls } = useProjectStore.getState();
-              const isVisible = visibleWalls?.[wall.key as keyof typeof visibleWalls] ?? true;
-              return (
-                <button
-                  key={wall.key}
-                  onClick={() => setVisibleWalls({ [wall.key]: !isVisible } as any)}
-                  className={`p-2 rounded-lg border text-xs font-bold transition-all ${
-                    isVisible
-                      ? 'bg-emerald-500/10 border-emerald-500/50 text-emerald-400'
-                      : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:text-white hover:bg-zinc-800'
-                  }`}
-                >
-                  {wall.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* Appliances Grid */}
+        <div>
+          <button
+            onClick={() => setExpandedCategory(expandedCategory === 'appliance' ? null : 'appliance')}
+            className="w-full flex items-center justify-between text-xs font-bold text-zinc-500 mb-2 hover:text-zinc-300 transition-colors"
+          >
+            <span className="flex items-center gap-1.5">
+              <Flame size={12} />
+              الأجهزة الكهربائية
+            </span>
+            {expandedCategory === 'appliance' ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+          
+          <AnimatePresence>
+            {expandedCategory === 'appliance' && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="grid grid-cols-2 gap-1.5">
+                  {applianceTools.map((tool) => {
+                    const Icon = tool.icon;
+                    return (
+                      <button
+                        key={tool.type}
+                        onClick={() => handleToolClick(tool)}
+                        className="relative flex items-center gap-2.5 p-2.5 bg-gradient-to-br from-zinc-900/80 to-zinc-950/80 border border-zinc-800/50 rounded-xl transition-all duration-200 hover:border-zinc-600 hover:shadow-lg group text-right"
+                      >
+                        <div className={`p-1.5 rounded-lg bg-gradient-to-br ${tool.bgColor} border border-zinc-800/50 group-hover:border-zinc-700/50 transition-colors`}>
+                          <Icon size={14} className={tool.color} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] font-bold text-zinc-300 group-hover:text-white transition-colors leading-tight truncate">{tool.label}</div>
+                          <div className="text-[8px] text-zinc-600 font-mono">{tool.type}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Room Wall Editor (in collapsed section) */}
+        <div className="pt-2 border-t border-zinc-800/30">
+          <RoomWallEditor />
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
-        <h2 className="text-sm font-bold text-zinc-500 mb-3 flex items-center gap-2">
-          وحدات المطبخ
-        </h2>
-        <div className="space-y-2 mb-6">
-          {kitchenTools.map((tool, idx) => {
-            const Icon = tool.icon;
-            return (
-              <motion.button 
-                key={tool.type}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                onClick={() => handleAddUnit(tool.type)} 
-                className={`w-full flex items-center gap-4 p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl transition-all duration-300 text-right group ${tool.bgHover}`}
-              >
-                <div className={`p-2 rounded-lg bg-zinc-950 border border-zinc-800 group-hover:border-transparent transition-colors ${tool.color}`}>
-                  <Icon size={16} />
-                </div>
-                <span className="font-semibold text-zinc-300 group-hover:text-white transition-colors text-xs">{tool.label}</span>
-              </motion.button>
-            )
-          })}
-        </div>
-
-        <h2 className="text-sm font-bold text-zinc-500 mb-3 flex items-center gap-2">
-          الأجهزة الكهربائية
-        </h2>
-        <div className="space-y-2">
-          {[
-            { type: 'fridge', label: 'ثلاجة', labelEn: 'Fridge', icon: '🧊', color: 'text-cyan-400', bgHover: 'hover:bg-cyan-500/10 hover:border-cyan-500/50' },
-            { type: 'freezer', label: 'فريزر', labelEn: 'Freezer', icon: '❄️', color: 'text-blue-400', bgHover: 'hover:bg-blue-500/10 hover:border-blue-500/50' },
-            { type: 'oven', label: 'فرن', labelEn: 'Oven', icon: '🔥', color: 'text-orange-400', bgHover: 'hover:bg-orange-500/10 hover:border-orange-500/50' },
-            { type: 'stove', label: 'بوتاجاز', labelEn: 'Stove', icon: '🍳', color: 'text-red-400', bgHover: 'hover:bg-red-500/10 hover:border-red-500/50' },
-            { type: 'dishwasher', label: 'غسالة أطباق', labelEn: 'Dishwasher', icon: '🍽️', color: 'text-teal-400', bgHover: 'hover:bg-teal-500/10 hover:border-teal-500/50' },
-            { type: 'washing_machine', label: 'غسالة ملابس', labelEn: 'Washing Machine', icon: '👕', color: 'text-indigo-400', bgHover: 'hover:bg-indigo-500/10 hover:border-indigo-500/50' },
-            { type: 'dryer', label: 'مجفف ملابس', labelEn: 'Dryer', icon: '🌬️', color: 'text-purple-400', bgHover: 'hover:bg-purple-500/10 hover:border-purple-500/50' },
-            { type: 'sink', label: 'حوض مطبخ', labelEn: 'Sink', icon: '🚰', color: 'text-emerald-400', bgHover: 'hover:bg-emerald-500/10 hover:border-emerald-500/50' },
-          ].map((appliance, idx) => (
-            <motion.button
-              key={appliance.type}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: (kitchenTools.length + idx) * 0.05 }}
-              onClick={() => {
-                // Add appliance as a base unit with special label
-                const settings = useProjectStore.getState().projectSettings;
-                const baseX = room ? Math.max(50, (room.widthMm / 2) - 300) : 1000;
-                const baseY = 0;
-                
-                let defaultX = baseX;
-                let defaultY = baseY;
-                
-                // Default dimensions for appliances
-                let widthMm = 600;
-                let depthMm = 600;
-                let heightMm = 850;
-                
-                // Set specific dimensions for each appliance type
-                switch(appliance.type) {
-                  case 'fridge':
-                    widthMm = 700;
-                    depthMm = 700;
-                    heightMm = 1800;
-                    break;
-                  case 'freezer':
-                    widthMm = 600;
-                    depthMm = 600;
-                    heightMm = 1800;
-                    break;
-                  case 'oven':
-                    widthMm = 600;
-                    depthMm = 600;
-                    heightMm = 900;
-                    break;
-                  case 'stove':
-                    widthMm = 600;
-                    depthMm = 600;
-                    heightMm = 900;
-                    break;
-                  case 'dishwasher':
-                    widthMm = 600;
-                    depthMm = 600;
-                    heightMm = 850;
-                    break;
-                  case 'washing_machine':
-                    widthMm = 600;
-                    depthMm = 600;
-                    heightMm = 850;
-                    break;
-                  case 'dryer':
-                    widthMm = 600;
-                    depthMm = 600;
-                    heightMm = 850;
-                    break;
-                  case 'sink':
-                    widthMm = 700;
-                    depthMm = 600;
-                    heightMm = 850;
-                    break;
-                }
-                
-                if (room) {
-                  const newUnit = {
-                    id: `unit_temp`,
-                    type: 'base' as UnitType,
-                    position: { xMm: baseX, yMm: baseY, zMm: 0, rotationDeg: 0 },
-                    dimensions: { widthMm, depthMm, heightMm },
-                    materialId: settings.defaultMaterialId,
-                    colorHex: settings.defaultBaseColor,
-                    doorMaterialId: settings.defaultDoorMaterialId,
-                    doorColorHex: settings.defaultBaseDoorColor,
-                    doorCount: 0,
-                    drawerCount: 0,
-                    shelfCount: 0,
-                    hingeType: settings.defaultHingeId,
-                    handleType: settings.defaultHandleId,
-                    hasLedProfile: false,
-                  } as any;
+      {/* ===== PROPERTIES PANEL ===== */}
+      <AnimatePresence>
+        {selectedElement ? (
+          <motion.div 
+            key="properties-panel"
+            initial={{ opacity: 0, y: 20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: 20, height: 0 }}
+            className="mt-4 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-emerald-500/20 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.03)] overflow-hidden flex-shrink-0"
+          >
+            <div className="p-3 max-h-64 overflow-y-auto custom-scrollbar">
+              {selectedElement.type === 'unit' && selectedUnit && (
+                <>
+                  <h3 className="font-bold text-white mb-3 text-xs flex items-center gap-2">
+                    <Box size={12} />
+                    خصائص الوحدة
+                    <span className="bg-emerald-500/20 text-emerald-400 text-[8px] px-1.5 py-0.5 rounded font-mono">{selectedUnit.type}</span>
+                  </h3>
                   
-                  const placement = findSmartUnitPlacement(newUnit, room, useProjectStore.getState().units, baseX, baseY, 50, 80);
-                  defaultX = placement.xMm;
-                  defaultY = placement.yMm;
-                }
-                
-                // Add unit with appliance label
-                const unitId = `unit_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-                const newUnit: any = {
-                  id: unitId,
-                  type: 'base',
-                  label: `${appliance.label} (${appliance.labelEn})`,
-                  position: { xMm: defaultX, yMm: defaultY, zMm: 0, rotationDeg: 0 },
-                  dimensions: { widthMm, depthMm, heightMm },
-                  materialId: settings.defaultMaterialId,
-                  colorHex: settings.defaultBaseColor,
-                  doorMaterialId: settings.defaultDoorMaterialId,
-                  doorColorHex: settings.defaultBaseDoorColor,
-                  doorCount: 0,
-                  drawerCount: 0,
-                  shelfCount: 0,
-                  hingeType: settings.defaultHingeId,
-                  handleType: settings.defaultHandleId,
-                  hasLedProfile: false,
-                };
-                
-                useProjectStore.getState().commitSnapshot();
-                useProjectStore.setState((state) => ({
-                  units: [...state.units, newUnit],
-                  selectedUnitId: unitId,
-                  selectedElement: { id: unitId, type: 'unit' },
-                  selectedElements: [{ id: unitId, type: 'unit' }],
-                }));
-              }}
-              className={`w-full flex items-center gap-3 p-3 bg-zinc-900/50 border border-zinc-800 rounded-xl transition-all duration-300 text-right group ${appliance.bgHover}`}
-            >
-              <div className={`text-2xl`}>{appliance.icon}</div>
-              <div className="flex-1">
-                <span className="font-semibold text-zinc-300 group-hover:text-white transition-colors text-xs block">{appliance.label}</span>
-                <span className="text-[10px] text-zinc-500">{appliance.labelEn}</span>
-              </div>
-            </motion.button>
-          ))}
-        </div>
+                  <div className="space-y-1.5 mb-3">
+                    <PropertyRow label="العرض" value={convertMmToDisplayUnit(selectedUnit.dimensions.widthMm, displayUnit)} unit={displayUnit}
+                      onChange={(v) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, convertDisplayUnitToMm(v, displayUnit), selectedUnit.dimensions.depthMm, selectedUnit.dimensions.heightMm)} />
+                    <PropertyRow label="العمق" value={convertMmToDisplayUnit(selectedUnit.dimensions.depthMm, displayUnit)} unit={displayUnit}
+                      onChange={(v) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, convertDisplayUnitToMm(v, displayUnit), selectedUnit.dimensions.heightMm)} />
+                    <PropertyRow label="الارتفاع" value={convertMmToDisplayUnit(selectedUnit.dimensions.heightMm, displayUnit)} unit={displayUnit}
+                      onChange={(v) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, selectedUnit.dimensions.depthMm, convertDisplayUnitToMm(v, displayUnit))} />
+                    <PropertyRow label="من الأرض" value={convertMmToDisplayUnit(selectedUnit.position.zMm ?? 0, displayUnit)} unit={displayUnit}
+                      onChange={(v) => useProjectStore.getState().updateUnitPosition(selectedUnit.id, selectedUnit.position.xMm, selectedUnit.position.yMm, convertDisplayUnitToMm(v, displayUnit))} />
+                    
+                    {/* Color */}
+                    <div className="flex justify-between items-center bg-zinc-950/50 p-1.5 rounded-lg border border-zinc-800">
+                      <span className="text-zinc-500 text-[10px] font-medium">اللون</span>
+                      <input type="color" value={selectedUnit.colorHex || '#D4B896'}
+                        onChange={(e) => useProjectStore.getState().updateUnitDetails(selectedUnit.id, { colorHex: e.target.value })}
+                        className="w-8 h-6 rounded cursor-pointer border border-zinc-700 bg-transparent" />
+                    </div>
+                    
+                    <div className="flex justify-between items-center bg-zinc-950/50 p-1.5 rounded-lg border border-zinc-800">
+                      <span className="text-zinc-500 text-[10px] font-medium">الزاوية</span>
+                      <select value={selectedUnit.position.rotationDeg}
+                        onChange={(e) => useProjectStore.getState().updateUnitPosition(selectedUnit.id, selectedUnit.position.xMm, selectedUnit.position.yMm, selectedUnit.position.zMm, Number(e.target.value) as any)}
+                        className="w-14 bg-transparent text-white font-mono text-[10px] text-left outline-none">
+                        <option value={0} className="text-black">0°</option>
+                        <option value={90} className="text-black">90°</option>
+                        <option value={180} className="text-black">180°</option>
+                        <option value={270} className="text-black">270°</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <button onClick={() => deleteUnit(selectedUnit.id)} 
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500 hover:text-white transition-all font-bold text-[10px]">
+                    <Trash2 size={12} />
+                    حذف الوحدة
+                  </button>
+                </>
+              )}
+
+              {selectedElement.type === 'fixture' && (
+                <RoomPropertiesPanel selectedElementType={
+                  room?.fixtures.find(f => f.id === selectedElement.id)?.type === 'door' || 
+                  room?.fixtures.find(f => f.id === selectedElement.id)?.type === 'balcony_door'
+                    ? 'door' : 'window'
+                } />
+              )}
+
+              {selectedElement.type === 'obstacle' && (
+                <RoomPropertiesPanel selectedElementType="column" />
+              )}
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div 
+            key="no-selection"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-4 p-4 text-[10px] text-zinc-600 text-center bg-zinc-900/30 border border-zinc-800/30 rounded-2xl border-dashed"
+          >
+            <Box size={16} className="mx-auto mb-1 opacity-50" />
+            اختر عنصراً من مساحة العمل لتعديل خصائصه
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Extra Controls Footer */}
+      <div className="mt-3 flex items-center gap-1">
+        <button onClick={toggleHistoryVisible}
+          className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border text-[10px] font-bold transition-all ${
+            historyVisible
+              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+              : 'bg-zinc-900/50 border-zinc-800 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300'
+          }`}>
+          🕘 سجل
+        </button>
+        <button onClick={useProjectStore.getState().showAllHiddenElements}
+          className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900/50 text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 text-[10px] font-bold transition-all">
+          <EyeOff size={12} />
+          إظهار المخفي
+        </button>
       </div>
 
-      {useProjectStore.getState().selectedElement ? (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-6 bg-zinc-900/80 border border-emerald-500/30 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.05)] relative overflow-hidden flex flex-col"
-          style={{ maxHeight: 'calc(100vh - 500px)' }}
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-3xl -z-10 rounded-full"></div>
-          <div className="p-5 overflow-y-auto flex-1 custom-scrollbar" onWheelCapture={(e) => e.stopPropagation()}>
-          
-          {useProjectStore.getState().selectedElement?.type === 'unit' && selectedUnit && (
-            <>
-              <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
-                خصائص الوحدة
-                <span className="bg-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded font-mono uppercase tracking-widest">{selectedUnit.type}</span>
-              </h3>
-              
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">
-                    {selectedUnit.type.startsWith('corner') ? 'الطول على الجدار (X)' : 'العرض'}
-                  </span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(selectedUnit.dimensions.widthMm, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, convertDisplayUnitToMm(Number(e.target.value), displayUnit), selectedUnit.dimensions.depthMm, selectedUnit.dimensions.heightMm)}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">
-                    {selectedUnit.type.startsWith('corner') ? 'الطول على الجدار (Y)' : 'العمق الإجمالي'}
-                  </span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(selectedUnit.dimensions.depthMm, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, convertDisplayUnitToMm(Number(e.target.value), displayUnit), selectedUnit.dimensions.heightMm)}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-
-                {selectedUnit.type.startsWith('corner') && (
-                  <>
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">عمق الوحدات المجاورة (X)</span>
-                      <input 
-                        type="number"
-                        value={convertMmToDisplayUnit(selectedUnit.dimensions.rightLegCarcassDepthMm || 600, displayUnit)}
-                        onChange={(e) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, selectedUnit.dimensions.depthMm, selectedUnit.dimensions.heightMm, selectedUnit.dimensions.leftLegCarcassDepthMm, convertDisplayUnitToMm(Number(e.target.value), displayUnit))}
-                        className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                      />
-                      <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                    </div>
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">عمق الوحدات المجاورة (Y)</span>
-                      <input 
-                        type="number"
-                        value={convertMmToDisplayUnit(selectedUnit.dimensions.leftLegCarcassDepthMm || 600, displayUnit)}
-                        onChange={(e) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, selectedUnit.dimensions.depthMm, selectedUnit.dimensions.heightMm, convertDisplayUnitToMm(Number(e.target.value), displayUnit), selectedUnit.dimensions.rightLegCarcassDepthMm)}
-                        className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                      />
-                      <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الارتفاع</span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(selectedUnit.dimensions.heightMm, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, selectedUnit.dimensions.depthMm, convertDisplayUnitToMm(Number(e.target.value), displayUnit))}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الارتفاع من الأرض</span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(selectedUnit.position.zMm ?? 0, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateUnitPosition(selectedUnit.id, selectedUnit.position.xMm, selectedUnit.position.yMm, convertDisplayUnitToMm(Number(e.target.value), displayUnit))}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الزاوية</span>
-                  <select 
-                    value={selectedUnit.position.rotationDeg}
-                    onChange={(e) => useProjectStore.getState().updateUnitPosition(selectedUnit.id, selectedUnit.position.xMm, selectedUnit.position.yMm, selectedUnit.position.zMm, Number(e.target.value) as any)}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  >
-                    <option value={0} className="text-black">0°</option>
-                    <option value={90} className="text-black">90°</option>
-                    <option value={180} className="text-black">180°</option>
-                    <option value={270} className="text-black">270°</option>
-                  </select>
-                </div>
-
-                {/* --- Parametric Properties --- */}
-                <div className="h-px bg-zinc-800/80 my-4 w-full"></div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الأبواب</span>
-                  <input 
-                    type="number"
-                    value={selectedUnit.doorCount}
-
-                    onChange={(e) => {
-                      const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, doorCount: Number(e.target.value) } : u);
-                      useProjectStore.setState({ units: updatedUnits });
-                    }}
-                    className="w-12 bg-transparent text-white font-mono text-sm text-center outline-none"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الأرفف الداخلية</span>
-                  <input 
-                    type="number"
-                    value={selectedUnit.shelfCount || 0}
-
-                    onChange={(e) => {
-                      const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, shelfCount: Number(e.target.value) } : u);
-                      useProjectStore.setState({ units: updatedUnits });
-                    }}
-                    className="w-12 bg-transparent text-white font-mono text-sm text-center outline-none"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">مفصلات للباب</span>
-                  <input 
-                    type="number"
-                    value={selectedUnit.hingesPerDoor || 2}
-
-                    onChange={(e) => {
-                      const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, hingesPerDoor: Number(e.target.value) } : u);
-                      useProjectStore.setState({ units: updatedUnits });
-                    }}
-                    className="w-12 bg-transparent text-white font-mono text-sm text-center outline-none"
-                  />
-                </div>
-
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">نوع المفصلات</span>
-                  <select 
-                    value={selectedUnit.hingeType || 'standard'}
-                    onChange={(e) => {
-                      const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, hingeType: e.target.value as any } : u);
-                      useProjectStore.setState({ units: updatedUnits });
-                    }}
-                    className="w-24 bg-transparent text-white font-mono text-xs text-left outline-none"
-                  >
-                    <option value="standard" className="text-black">عادية</option>
-                    <option value="soft_close" className="text-black">باكم (Soft Close)</option>
-                    <option value="180_deg" className="text-black">180 درجة</option>
-                    <option value="none" className="text-black">بدون</option>
-                  </select>
-                </div>
-
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">المقابض</span>
-                  <select 
-                    value={selectedUnit.handleType || 'standard'}
-                    onChange={(e) => {
-                      const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, handleType: e.target.value as any } : u);
-                      useProjectStore.setState({ units: updatedUnits });
-                    }}
-                    className="w-24 bg-transparent text-white font-mono text-xs text-left outline-none"
-                  >
-                    <option value="standard" className="text-black">عادي</option>
-                    <option value="profile" className="text-black">بروفايل (Gola)</option>
-                    <option value="cnc_groove" className="text-black">مجرى CNC</option>
-                    <option value="knob" className="text-black">مقبض صغير (Knob)</option>
-                    <option value="hidden" className="text-black">مخفي (Push to open)</option>
-                    <option value="none" className="text-black">بدون</option>
-                  </select>
-                </div>
-
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">إضاءة ليد (LED Profile)</span>
-                  <input 
-                    type="checkbox"
-                    checked={selectedUnit.hasLedProfile || false}
-                    onChange={(e) => {
-                      const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, hasLedProfile: e.target.checked, ledProfileLengthMm: e.target.checked ? u.dimensions.widthMm : 0 } : u);
-                      useProjectStore.setState({ units: updatedUnits });
-                    }}
-                    className="w-4 h-4 rounded accent-emerald-500"
-                  />
-                </div>
-
-                {/* --- 3D View Controls: فتح الأبواب والأدراج --- */}
-                <div className="h-px bg-zinc-800/80 my-4 w-full"></div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, _3dDoorOpen: !u._3dDoorOpen } : u);
-                      useProjectStore.setState({ units: updatedUnits });
-                    }}
-                    className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${
-                      selectedUnit._3dDoorOpen
-                        ? 'bg-amber-500/10 border-amber-500/50 text-amber-400'
-                        : 'bg-zinc-950/50 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
-                    }`}
-                  >
-                    {selectedUnit._3dDoorOpen ? '🗝️ إغلاق الأبواب' : '🚪 فتح الأبواب'}
-                  </button>
-                  {(selectedUnit.drawerCount || 0) > 0 && (
-                    <button
-                      onClick={() => {
-                        const updatedUnits = units.map(u => u.id === selectedUnit.id ? { ...u, _3dDrawerOpen: !u._3dDrawerOpen } : u);
-                        useProjectStore.setState({ units: updatedUnits });
-                      }}
-                      className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${
-                        selectedUnit._3dDrawerOpen
-                          ? 'bg-amber-500/10 border-amber-500/50 text-amber-400'
-                          : 'bg-zinc-950/50 border-zinc-800 text-zinc-400 hover:text-white hover:bg-zinc-800'
-                      }`}
-                    >
-                      {selectedUnit._3dDrawerOpen ? '✖️ إغلاق الأدراج' : '📂 فتح الأدراج'}
-                    </button>
-                  )}
-                </div>
-                <div className="text-[10px] text-zinc-600 text-center mt-1">(للعرض 3D فقط)</div>
-
-                {/* --- Door Division & Dividers --- */}
-                <div className="h-px bg-zinc-800/80 my-4 w-full"></div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">تقسيم الأبواب</span>
-                  <select
-                    value={selectedUnit.doorConfig?.divisionStyle || 'equal'}
-                    onChange={(e) => {
-                      const style = e.target.value as any;
-                      const existing = selectedUnit.doorConfig || { count: selectedUnit.doorCount, divisionStyle: 'equal' as any, dividerWidthMm: 50 };
-                      let newConfig: any = { ...existing, divisionStyle: style };
-                      // Auto-compute panel groups
-                      if (style === 'equal') {
-                        newConfig.panelGroupSizes = undefined;
-                        newConfig.dividerWidthMm = undefined;
-                      } else if (style === 'symmetrical' && selectedUnit.doorCount >= 4) {
-                        newConfig.panelGroupSizes = [Math.floor(selectedUnit.doorCount / 2), Math.ceil(selectedUnit.doorCount / 2)];
-                        newConfig.dividerWidthMm = newConfig.dividerWidthMm || 50;
-                      }
-                      useProjectStore.getState().updateUnitDetails(selectedUnit.id, { doorConfig: newConfig });
-                    }}
-                    className="w-24 bg-transparent text-white font-mono text-xs text-left outline-none"
-                  >
-                    <option value="equal" className="text-black">متساوي</option>
-                    <option value="symmetrical" className="text-black">مع فاصل في النص</option>
-                    <option value="asymmetric" className="text-black">توزيع حر</option>
-                  </select>
-                </div>
-                {selectedUnit.doorConfig?.divisionStyle === 'symmetrical' && (
-                  <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                    <span className="text-zinc-500 text-xs font-medium">عرض الفاصل (مم)</span>
-                    <input
-                      type="number"
-                      value={selectedUnit.doorConfig?.dividerWidthMm || 50}
-                      onChange={(e) => {
-                        const newConfig = { ...(selectedUnit.doorConfig || { count: selectedUnit.doorCount, divisionStyle: 'symmetrical' as any }), dividerWidthMm: Number(e.target.value) };
-                        useProjectStore.getState().updateUnitDetails(selectedUnit.id, { doorConfig: newConfig });
-                      }}
-                      className="w-16 bg-transparent text-white font-mono text-sm text-center outline-none border-b border-zinc-700"
-                    />
-                  </div>
-                )}
-                {selectedUnit.doorConfig?.divisionStyle === 'symmetrical' && selectedUnit.doorConfig?.panelGroupSizes && (
-                  <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                    <span className="text-zinc-500 text-xs font-medium">توزيع الضلف</span>
-                    <span className="text-white font-mono text-xs">
-                      {selectedUnit.doorConfig.panelGroupSizes.join(' + ')}
-                      {' = '}{selectedUnit.doorConfig.panelGroupSizes.reduce((a, b) => a + b, 0)} باب
-                    </span>
-                  </div>
-                )}
-
-                {/* --- LED Profile Advanced --- */}
-                <div className="h-px bg-zinc-800/80 my-4 w-full"></div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-500 text-xs font-medium">إضاءة ليد</span>
-                    <span className="text-[10px] text-zinc-700">(LED)</span>
-                  </div>
-                  <input 
-                    type="checkbox"
-                    checked={selectedUnit.ledConfig?.hasLed || selectedUnit.hasLedProfile || false}
-                    onChange={(e) => {
-                      const hasLed = e.target.checked;
-                      const existing = selectedUnit.ledConfig || { hasLed: false, placement: 'external_top' as any, colorHex: '#FFE4B5', brightness: 0.8 };
-                      const newConfig: any = { ...existing, hasLed };
-                      if (hasLed) {
-                        // Auto-compute lengths
-                        newConfig.externalLengthMm = selectedUnit.dimensions.widthMm;
-                        newConfig.internalLengthMm = (selectedUnit.shelfCount || 0) > 0 ? (selectedUnit.shelfCount || 1) * selectedUnit.dimensions.widthMm : 0;
-                      }
-                      useProjectStore.getState().updateUnitDetails(selectedUnit.id, { hasLedProfile: hasLed, ledConfig: newConfig, ledProfileLengthMm: hasLed ? selectedUnit.dimensions.widthMm : 0 });
-                    }}
-                    className="w-4 h-4 rounded accent-emerald-500"
-                  />
-                </div>
-                {selectedUnit.ledConfig?.hasLed && (
-                  <>
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">مكان الليد</span>
-                      <select
-                        value={selectedUnit.ledConfig?.placement || 'external_top'}
-                        onChange={(e) => {
-                          const newConfig = { ...selectedUnit.ledConfig!, placement: e.target.value as any };
-                          useProjectStore.getState().updateUnitDetails(selectedUnit.id, { ledConfig: newConfig });
-                        }}
-                        className="w-24 bg-transparent text-white font-mono text-xs text-left outline-none"
-                      >
-                        <option value="external_top" className="text-black">خارجي - فوق</option>
-                        <option value="external_bottom" className="text-black">خارجي - تحت</option>
-                        <option value="internal_top" className="text-black">داخلي - فوق الرفوف</option>
-                        <option value="internal_bottom" className="text-black">داخلي - تحت الرفوف</option>
-                        <option value="both" className="text-black">خارجي + داخلي</option>
-                      </select>
-                    </div>
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">الطول الخارجي (مم)</span>
-                      <input
-                        type="number"
-                        value={selectedUnit.ledConfig?.externalLengthMm || selectedUnit.dimensions.widthMm}
-                        onChange={(e) => {
-                          const newConfig = { ...selectedUnit.ledConfig!, externalLengthMm: Number(e.target.value) };
-                          useProjectStore.getState().updateUnitDetails(selectedUnit.id, { ledConfig: newConfig, ledProfileLengthMm: Number(e.target.value) + (newConfig.internalLengthMm || 0) });
-                        }}
-                        className="w-16 bg-transparent text-white font-mono text-sm text-center outline-none border-b border-zinc-700"
-                      />
-                    </div>
-                    {(selectedUnit.ledConfig?.placement === 'internal_top' || selectedUnit.ledConfig?.placement === 'internal_bottom' || selectedUnit.ledConfig?.placement === 'both') && (
-                      <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                        <span className="text-zinc-500 text-xs font-medium">الطول الداخلي (مم)</span>
-                        <input
-                          type="number"
-                          value={selectedUnit.ledConfig?.internalLengthMm || 0}
-                          onChange={(e) => {
-                            const newConfig = { ...selectedUnit.ledConfig!, internalLengthMm: Number(e.target.value) };
-                            useProjectStore.getState().updateUnitDetails(selectedUnit.id, { ledConfig: newConfig, ledProfileLengthMm: (newConfig.externalLengthMm || 0) + Number(e.target.value) });
-                          }}
-                          className="w-16 bg-transparent text-white font-mono text-sm text-center outline-none border-b border-zinc-700"
-                        />
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">لون الإضاءة</span>
-                      <input
-                        type="color"
-                        value={selectedUnit.ledConfig?.colorHex || '#FFE4B5'}
-                        onChange={(e) => {
-                          const newConfig = { ...selectedUnit.ledConfig!, colorHex: e.target.value };
-                          useProjectStore.getState().updateUnitDetails(selectedUnit.id, { ledConfig: newConfig });
-                        }}
-                        className="w-10 h-8 rounded cursor-pointer border border-zinc-700 bg-transparent"
-                      />
-                    </div>
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">شدة الإضاءة</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="1"
-                        step="0.1"
-                        value={selectedUnit.ledConfig?.brightness || 0.8}
-                        onChange={(e) => {
-                          const newConfig = { ...selectedUnit.ledConfig!, brightness: Number(e.target.value) };
-                          useProjectStore.getState().updateUnitDetails(selectedUnit.id, { ledConfig: newConfig });
-                        }}
-                        className="w-20 accent-emerald-500"
-                      />
-                    </div>
-                  </>
-                )}
-
-                {selectedUnit.type.startsWith('corner') && (
-                  <>
-                    <div className="h-px bg-zinc-800/80 my-4 w-full"></div>
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">شكل باب الركن</span>
-                      <select 
-                        value={selectedUnit.cornerConfig?.doorStyle || 'bifold_lazy_susan'}
-                        onChange={(e) => {
-                          const updatedConfig = { ...(selectedUnit.cornerConfig || { internalSolution: 'none', hardwareCost: 0 }), doorStyle: e.target.value as any };
-                          useProjectStore.getState().updateUnitDetails(selectedUnit.id, { cornerConfig: updatedConfig });
-                        }}
-                        className="w-24 bg-transparent text-white font-mono text-xs text-left outline-none"
-                      >
-                        <option value="bifold_lazy_susan" className="text-black">مفصلات متصلة (Bi-fold)</option>
-                        <option value="diagonal_single" className="text-black">باب قطري (شطف)</option>
-                        <option value="none" className="text-black">بدون</option>
-                      </select>
-                    </div>
-
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-xs font-medium">نظام التخزين الداخلي</span>
-                      <select 
-                        value={selectedUnit.cornerConfig?.internalSolution || 'none'}
-                        onChange={(e) => {
-                          const updatedConfig = { ...(selectedUnit.cornerConfig || { doorStyle: 'bifold_lazy_susan', hardwareCost: 0 }), internalSolution: e.target.value as any };
-                          useProjectStore.getState().updateUnitDetails(selectedUnit.id, { cornerConfig: updatedConfig });
-                        }}
-                        className="w-24 bg-transparent text-white font-mono text-xs text-left outline-none"
-                      >
-                        <option value="fixed_shelf" className="text-black">أرفف خشب ثابتة</option>
-                        <option value="lazy_susan_2tier" className="text-black">أطباق دوارة (Lazy Susan)</option>
-                        <option value="magic_corner_pullout" className="text-black">سحب ذكي (Magic Corner)</option>
-                        <option value="none" className="text-black">بدون</option>
-                      </select>
-                    </div>
-
-                    {(selectedUnit.cornerConfig?.internalSolution === 'lazy_susan_2tier' || selectedUnit.cornerConfig?.internalSolution === 'magic_corner_pullout') && (
-                      <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                        <span className="text-zinc-500 text-xs font-medium">تكلفة الميكانيزم الجاهز</span>
-                        <input 
-                          type="number"
-                          value={selectedUnit.cornerConfig.hardwareCost}
-                          onChange={(e) => {
-                            const updatedConfig = { ...selectedUnit.cornerConfig!, hardwareCost: Number(e.target.value) };
-                            useProjectStore.getState().updateUnitDetails(selectedUnit.id, { cornerConfig: updatedConfig });
-                          }}
-                          className="w-16 bg-transparent text-white font-mono text-sm text-center outline-none border-b border-zinc-700"
-                        />
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-              <button 
-                onClick={() => deleteUnit(selectedUnit.id)} 
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500 hover:text-white transition-all font-bold text-sm"
-              >
-                <Trash2 size={16} />
-                حذف الوحدة
-              </button>
-            </>
-          )}
-          
-          {useProjectStore.getState().selectedElement?.type === 'fixture' && (
-            <>
-              <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
-                خصائص الفتحة
-                <span className="bg-sky-500/20 text-sky-400 text-[10px] px-2 py-0.5 rounded font-mono uppercase tracking-widest">
-                  {useProjectStore.getState().room?.fixtures.find(f => f.id === useProjectStore.getState().selectedElement?.id)?.type}
-                </span>
-              </h3>
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">العرض</span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(useProjectStore.getState().room?.fixtures.find(f => f.id === useProjectStore.getState().selectedElement?.id)?.widthMm || 0, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateRoomFixture(useProjectStore.getState().selectedElement!.id, { widthMm: convertDisplayUnitToMm(Number(e.target.value), displayUnit) })}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الارتفاع العمودي</span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(useProjectStore.getState().room?.fixtures.find(f => f.id === useProjectStore.getState().selectedElement?.id)?.heightMm || 0, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateRoomFixture(useProjectStore.getState().selectedElement!.id, { heightMm: convertDisplayUnitToMm(Number(e.target.value), displayUnit) })}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الارتفاع عن الأرض</span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(useProjectStore.getState().room?.fixtures.find(f => f.id === useProjectStore.getState().selectedElement?.id)?.zMm || 0, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateRoomFixture(useProjectStore.getState().selectedElement!.id, { zMm: convertDisplayUnitToMm(Number(e.target.value), displayUnit) })}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الزاوية</span>
-                  <select 
-                    value={useProjectStore.getState().room?.fixtures.find(f => f.id === useProjectStore.getState().selectedElement?.id)?.rotationDeg || 0}
-                    onChange={(e) => useProjectStore.getState().updateRoomFixture(useProjectStore.getState().selectedElement!.id, { rotationDeg: Number(e.target.value) })}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  >
-                    <option value={0} className="text-black">0°</option>
-                    <option value={90} className="text-black">90°</option>
-                    <option value={180} className="text-black">180°</option>
-                    <option value={270} className="text-black">270°</option>
-                  </select>
-                </div>
-              </div>
-              <button 
-                onClick={() => useProjectStore.getState().deleteRoomFixture(useProjectStore.getState().selectedElement!.id)} 
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500 hover:text-white transition-all font-bold text-sm"
-              >
-                <Trash2 size={16} />
-                حذف
-              </button>
-            </>
-          )}
-
-          {useProjectStore.getState().selectedElement?.type === 'obstacle' && (
-            <>
-              <h3 className="font-bold text-white mb-4 text-sm flex items-center gap-2">
-                خصائص العمود
-                <span className="bg-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded font-mono uppercase tracking-widest">
-                  {useProjectStore.getState().room?.obstacles.find(o => o.id === useProjectStore.getState().selectedElement?.id)?.type}
-                </span>
-              </h3>
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">العرض</span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(useProjectStore.getState().room?.obstacles.find(o => o.id === useProjectStore.getState().selectedElement?.id)?.widthMm || 0, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateRoomObstacle(useProjectStore.getState().selectedElement!.id, { widthMm: convertDisplayUnitToMm(Number(e.target.value), displayUnit) })}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">العمق</span>
-                  <input 
-                    type="number"
-                    value={convertMmToDisplayUnit(useProjectStore.getState().room?.obstacles.find(o => o.id === useProjectStore.getState().selectedElement?.id)?.depthMm || 0, displayUnit)}
-                    onChange={(e) => useProjectStore.getState().updateRoomObstacle(useProjectStore.getState().selectedElement!.id, { depthMm: convertDisplayUnitToMm(Number(e.target.value), displayUnit) })}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  />
-                  <span className="text-zinc-600 text-xs">{displayUnit}</span>
-                </div>
-                <div className="flex justify-between items-center bg-zinc-950/50 p-2.5 rounded-lg border border-zinc-800">
-                  <span className="text-zinc-500 text-xs font-medium">الزاوية</span>
-                  <select 
-                    value={useProjectStore.getState().room?.obstacles.find(o => o.id === useProjectStore.getState().selectedElement?.id)?.rotationDeg || 0}
-                    onChange={(e) => useProjectStore.getState().updateRoomObstacle(useProjectStore.getState().selectedElement!.id, { rotationDeg: Number(e.target.value) })}
-                    className="w-20 bg-transparent text-white font-mono text-sm text-left outline-none"
-                  >
-                    <option value={0} className="text-black">0°</option>
-                    <option value={90} className="text-black">90°</option>
-                    <option value={180} className="text-black">180°</option>
-                    <option value={270} className="text-black">270°</option>
-                  </select>
-                </div>
-              </div>
-              <button 
-                onClick={() => useProjectStore.getState().deleteRoomObstacle(useProjectStore.getState().selectedElement!.id)} 
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500 hover:text-white transition-all font-bold text-sm"
-              >
-                <Trash2 size={16} />
-                حذف
-              </button>
-            </>
-          )}
-
-          </div>{/* END inner scrollable div */}
-        </motion.div>
-      ) : (
-        <div className="mt-6 p-6 text-sm text-zinc-500 text-center bg-zinc-900/30 border border-zinc-800/50 rounded-2xl border-dashed">
-          اختر عنصراً من مساحة العمل لتعديل خصائصه
-        </div>
-      )}
+      {showQuickRect && <QuickRectangleModal onClose={() => setShowQuickRect(false)} />}
     </div>
   );
 };
+
+// Helper component for property rows
+const PropertyRow = ({ label, value, unit, onChange }: { 
+  label: string; value: number; unit: string; onChange: (v: number) => void 
+}) => (
+  <div className="flex justify-between items-center bg-zinc-950/50 p-1.5 rounded-lg border border-zinc-800">
+    <span className="text-zinc-500 text-[10px] font-medium">{label}</span>
+    <div className="flex items-center gap-1">
+      <input type="number" value={Number(value.toFixed(2))}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-14 bg-transparent text-white font-mono text-[10px] text-left outline-none" />
+      <span className="text-zinc-600 text-[8px]">{unit}</span>
+    </div>
+  </div>
+);

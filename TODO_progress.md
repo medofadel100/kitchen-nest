@@ -1,30 +1,19 @@
-# KitchenNest - New Feature Requirements
+# TODO_progress.md
 
-## 🎯 الخطوات القادمة:
+## 1) Update share UI (model + price + delivery)
+- [x] Add price block to `src/app/share/[id]/page.tsx`. (done)
+- [x] Use new safe pricing fields from `/api/share/[shareToken]`. (done)
 
-### 1. تصميم المطابخ بأشكال غير منتظمة
-- [ ] إضافة أداة رسم الغرفة في 2D (Polygon drawing tool)
-- [ ] حفظ نقاط الزوايا كـ polygonMm في Room
-- [ ] تحويل الـ polygon لجدران متعددة الجوانب في 3D
-- [ ] خيار لإظهار/إخفاء الجدران (2-4 جدران)
+## 2) Update share API to return safe price fields
+- [x] Modify `src/app/api/share/[shareToken]/route.ts` to include safe single value (grand total شاملة VAT).
 
-### 2. تحسين الأبواب والنوافذ
-- [ ] جعل الأبواب تأخذ نفس شكل النوافذ (مستطيلة)
-- [ ] إضافة خيارات للباب (الارتفاع، الاتجاه)
+## 3) Fix missing/hidden AR activation
+- [ ] Ensure AR button is visible on mobile (remove `hidden md:block` assumptions / add mobile placement).
+- [ ] Confirm `model-viewer` slot `ar-button` works reliably.
 
-### 3. إنشاء موديلات مخصصة
-- [ ] إنشاء صفحة جديدة `/models` لإنشاء وتعديل الموديلات
-- [ ] أدوات رسم 2D/3D بسيطة (مستطيلات، أسطوانات، قطع)
-- [ ] حفظ الموديلات في قاعدة البيانات
-- [ ] تصنيف الموديلات (وحدات، أبواب، خشب، إكسسوارات)
-- [ ] بحث في الموديلات
+## 4) Make share mode fully readOnly (no transform / no context menu / no open doors)
+- [ ] In `src/components/canvas/KitchenCanvas3D.tsx`, block contextMenu creation and interactions entirely when `readOnly=true`.
 
-### 4. تحسين الموديلات الحالية
-- [ ] تنظيم الموديلات في فئات
-- [ ] تحسين جودة الموديلات الحالية
-- [ ] إضافة خاصية البحث للموديلات
+## 5) Verify build
+- [ ] Run typecheck + tests / start dev build if needed.
 
-## ملاحظات تقنية:
-- الغرفة الحالية تعتمد على width/length مستطيلة
-- يجب تعديل Room interface لدعم polygonMm
-- الموديلات الجديدة تحتاج interface جديد للمعرفة

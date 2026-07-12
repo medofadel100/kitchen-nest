@@ -1,4 +1,4 @@
-import { KitchenUnit, CutPiece, UnitType } from "@/types";
+import { KitchenUnit, CutPiece, UnitType, StructuralObstacle, PanelNotch } from "@/types";
 
 // قواعد بناء جسم كل نوع وحدة: كام قطعة، وأبعادها بالنسبة لأبعاد الوحدة الكلية
 // دي قواعد نجارة قياسية مبسطة - قابلة للتفصيل أكتر لاحقًا (مثلاً سمك الخشب المستخدم في الحسبة)
@@ -293,12 +293,330 @@ function cornerDoorPieces(unit: KitchenUnit, label: string, visualGroupId?: stri
 }
 
 /**
- * يحول وحدة مطبخ واحدة لكل قطع الخشب المطلوبة لتصنيعها
+ * يبني قطع الكاركاس حول عائق إنشائي (عمود)
+ * القطعة الواحدة تكون بشكلها الأصلي، لكن الزاوية اللي بيحتلها العمود تتقرض (Notch)
+ * 
+ * الحساب الصحيح الموحّد:
+ *   localObsLeft/Right  = حدود منطقة الاستبعاد بالنسبة لبداية الوحدة (0..widthMm)
+ *   PT                  = PANEL_THICKNESS_MM (سُمك الجانب — يُطرح مرة واحدة بس)
+ *   obsExcludeLeft/Right= حدود منطقة الاستبعاد داخل الفضاء الداخلي (0..innerWidth)
+ *   notchWidth          = عرض الجزء المقروض (منطقة الاستبعاد)
+ *   notchDepth          = عمق التغرغر (عمق العمود + الخلوص)
  */
-export function unitToCutPieces(unit: KitchenUnit): CutPiece[] {
+function obstacleAwareCarcassPieces(
+  unit: KitchenUnit,
+  obstacle: StructuralObstacle,
+  clearanceMm: number,
+  label: string
+): CutPiece[] {
+  const { widthMm, depthMm, heightMm } = unit.dimensions;
+  const colorId = unit.colorId || 'default';
+  const colorHex = unit.colorHex || '#D4B896';
+  const pieces: CutPiece[] = [];
+
+  // موضع حافتي منطقة الاستبعاد بالنسبة لبداية الوحدة المحلية (0..widthMm)
+  const localObsLeft  = obstacle.xMm - unit.position.xMm - clearanceMm;
+  const localObsRight = obstacle.xMm + obstacle.widthMm - unit.position.xMm + clearanceMm;
+
+  // تحديد الزاوية: هل العمود لاصق يمين ولا شمال الوحدة؟
+  const isNearRightEdge = localObsRight >= widthMm;
+
+  // حساب عرض النوتش (منطقة الاستبعاد)
+  const notchWidth = Math.min(localObsRight, widthMm) - Math.max(localObsLeft, 0);
+  
+  // حساب عمق النوتش (عمق العمود + الخلوص)
+  const notchDepth = obstacle.depthMm + clearanceMm;
+
+  // جهة العمود: يسار أو يمين الوحدة
+  const columnSide: "left" | "right" = isNearRightEdge ? "right" : "left";
+
+  const sidePanelNotch = (side: "left" | "right"): PanelNotch | undefined => {
+    if (side !== columnSide) return undefined;
+    return {
+      cornerX: side === "left" ? "left" : "right",
+      cornerY: "back",
+      notchWidthMm: notchDepth,
+      notchDepthMm: notchWidth,
+    };
+  };
+
+  // --- الجانبان: قطعتان كاملتان، النوتش على الجانب المتأثر فقط ---
+  pieces.push({
+    id: `${unit.id}_side_left`,
+    widthMm: depthMm,
+    heightMm: heightMm,
+    materialId: unit.materialId,
+    colorId,
+    colorHex,
+    label: `${label} - جانب شمال${columnSide === "left" ? " (بها فتحة عمود)" : ""}`,
+    canRotate: false,
+    edgesToBind: ["left", "bottom"],
+    notch: sidePanelNotch("left"),
+  });
+  pieces.push({
+    id: `${unit.id}_side_right`,
+    widthMm: depthMm,
+    heightMm: heightMm,
+    materialId: unit.materialId,
+    colorId,
+    colorHex,
+    label: `${label} - جانب يمين${columnSide === "right" ? " (بها فتحة عمود)" : ""}`,
+    canRotate: false,
+    edgesToBind: ["left", "bottom"],
+    notch: sidePanelNotch("right"),
+  });
+
+  // --- القاعدة والسقف (قطعة واحدة + notch) ---
+  const innerWidth = widthMm - 2 * PANEL_THICKNESS_MM;
+  
+  // القاعدة: قطعة واحدة بعرضها الأصلي، لكن فيها نوتش
+  const horizontalNotch: PanelNotch = {
+    cornerX: columnSide,
+    cornerY: "back",
+    notchWidthMm: notchWidth,
+    notchDepthMm: notchDepth,
+  };
+  
+  pieces.push({
+    id: `${unit.id}_base`,
+    widthMm: innerWidth,
+    heightMm: depthMm,
+    materialId: unit.materialId,
+    colorId,
+    colorHex,
+    label: `${label} - قاعدة (بها فتحة عمود)`,
+    canRotate: false, // القطعة بها نوتش، متلفش عشوائي
+    edgesToBind: ["bottom"],
+    notch: horizontalNotch,
+  });
+
+  // السقف: نفس المنطق بالظبط
+  pieces.push({
+    id: `${unit.id}_top`,
+    widthMm: innerWidth,
+    heightMm: depthMm,
+    materialId: unit.materialId,
+    colorId,
+    colorHex,
+    label: `${label} - سقف (بها فتحة عمود)`,
+    canRotate: false,
+    edgesToBind: ["bottom"],
+    notch: horizontalNotch,
+  });
+
+  // --- الظهر (عمودي): النوتش على بعد الارتفاع (cornerY) وليس العمق الكامل ---
+  const backNotch: PanelNotch = {
+    cornerX: columnSide,
+    cornerY: "back",
+    notchWidthMm: notchWidth,
+    notchDepthMm: notchDepth,
+  };
+  
+  pieces.push({
+    id: `${unit.id}_back`,
+    widthMm: innerWidth,
+    heightMm: heightMm,
+    materialId: unit.materialId,
+    colorId,
+    colorHex,
+    label: `${label} - ظهر (بها فتحة عمود)`,
+    canRotate: false,
+    edgesToBind: [],
+    notch: backNotch,
+  });
+
+  // --- الأرفف (لو بتقع في نفس منسوب العمود) ---
+  const shelfCount = unit.shelfCount || 0;
+  for (let i = 0; i < shelfCount; i++) {
+    // الرف عمودي: النوتش يبقى في الخلف (cornerY: back)
+    const shelfNotch: PanelNotch = {
+      cornerX: columnSide,
+      cornerY: "back",
+      notchWidthMm: notchWidth,
+      notchDepthMm: notchDepth,
+    };
+    
+    pieces.push({
+      id: `${unit.id}_shelf_${i + 1}`,
+      widthMm: innerWidth,
+      heightMm: depthMm - 20,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - رف ${i + 1} (بها فتحة عمود)`,
+      canRotate: false,
+      edgesToBind: ["bottom"],
+      notch: shelfNotch,
+    });
+  }
+
+  return pieces;
+}
+
+
+/**
+ * يبني قطع الكاركاس لوحدة إحاطة جهاز (زي التلاجة)
+ * بيعمل تجويف للجهاز جوه الوحدة
+ */
+function applianceHousingCarcassPieces(
+  unit: KitchenUnit,
+  applianceHeightMm: number,
+  config: NonNullable<KitchenUnit['applianceHousingConfig']>,
+  label: string
+): CutPiece[] {
+  const { widthMm, depthMm, heightMm } = unit.dimensions;
+  const colorId = unit.colorId || 'default';
+  const colorHex = unit.colorHex || '#D4B896';
+  const pieces: CutPiece[] = [];
+
+  const { clearanceMm, hasBaseUnderneath } = config;
+
+  // حساب أبعاد التجويف الداخلي للجهاز
+  const cavityWidth = widthMm - clearanceMm.leftMm - clearanceMm.rightMm;
+  const cavityDepth = depthMm - clearanceMm.backMm;
+  const cavityTop = heightMm - clearanceMm.topMm - applianceHeightMm;
+
+  // --- الجانبين (يمين ويسار) ---
+  // الجانب الأيسر: بعرض كامل
+  pieces.push({
+    id: `${unit.id}_side_left`,
+    widthMm: depthMm,
+    heightMm: heightMm,
+    materialId: unit.materialId,
+    colorId, colorHex,
+    label: `${label} - جانب شمال`,
+    canRotate: true,
+    edgesToBind: ["left", "bottom"],
+  });
+  // الجانب الأيمن
+  pieces.push({
+    id: `${unit.id}_side_right`,
+    widthMm: depthMm,
+    heightMm: heightMm,
+    materialId: unit.materialId,
+    colorId, colorHex,
+    label: `${label} - جانب يمين`,
+    canRotate: true,
+    edgesToBind: ["left", "bottom"],
+  });
+
+  // --- القاعدة ---
+  const innerWidth = widthMm - 2 * PANEL_THICKNESS_MM;
+  if (hasBaseUnderneath) {
+    // قاعدة كاملة تحت الجهاز
+    pieces.push({
+      id: `${unit.id}_base`,
+      widthMm: innerWidth,
+      heightMm: depthMm,
+      materialId: unit.materialId,
+      colorId, colorHex,
+      label: `${label} - قاعدة`,
+      canRotate: true,
+      edgesToBind: ["bottom"],
+    });
+  }
+
+  // --- السقف (فوق الجهاز) ---
+  pieces.push({
+    id: `${unit.id}_top`,
+    widthMm: innerWidth,
+    heightMm: depthMm,
+    materialId: unit.materialId,
+    colorId, colorHex,
+    label: `${label} - سقف`,
+    canRotate: true,
+    edgesToBind: ["bottom"],
+  });
+
+  // --- الظهر (مقطوع في منطقة الجهاز للتهوية) ---
+  // الظهر العلوي (فوق الجهاز)
+  if (cavityTop > 0) {
+    pieces.push({
+      id: `${unit.id}_back_upper`,
+      widthMm: innerWidth,
+      heightMm: cavityTop,
+      materialId: unit.materialId,
+      colorId, colorHex,
+      label: `${label} - ظهر علوي`,
+      canRotate: true,
+      edgesToBind: [],
+    });
+  }
+  // الظهر السفلي (تحت الجهاز)
+  const lowerBackHeight = hasBaseUnderneath ? PANEL_THICKNESS_MM : 0;
+  if (lowerBackHeight > 0) {
+    pieces.push({
+      id: `${unit.id}_back_lower`,
+      widthMm: innerWidth,
+      heightMm: lowerBackHeight,
+      materialId: unit.materialId,
+      colorId, colorHex,
+      label: `${label} - ظهر سفلي`,
+      canRotate: true,
+      edgesToBind: [],
+    });
+  }
+
+  // --- الأرفف (فوق الجهاز فقط) ---
+  const shelfCount = unit.shelfCount || 0;
+  if (shelfCount > 0 && cavityTop > 100) {
+    // الأرفف تكون في المساحة الفاضية فوق الجهاز
+    const shelfSpace = cavityTop - 40; // خصم بسيط
+    const shelfH = Math.min(depthMm - 20, shelfSpace / (shelfCount + 1));
+    for (let i = 0; i < shelfCount; i++) {
+      pieces.push({
+        id: `${unit.id}_shelf_${i + 1}`,
+        widthMm: innerWidth,
+        heightMm: shelfH,
+        materialId: unit.materialId,
+        colorId, colorHex,
+        label: `${label} - رف ${i + 1}`,
+        canRotate: true,
+        edgesToBind: ["bottom"],
+      });
+    }
+  }
+
+  return pieces;
+}
+
+/**
+ * يحول وحدة مطبخ واحدة لكل قطع الخشب المطلوبة لتصنيعها
+ * مع مراعاة العوائق الإنشائية وإعدادات إحاطة الأجهزة
+ */
+export function unitToCutPieces(
+  unit: KitchenUnit,
+  obstacles?: StructuralObstacle[],
+  applianceHeightMm?: number
+): CutPiece[] {
   const label = unit.label ?? unitTypeLabelAr(unit.type);
   const visualGroupId = `vg_doors_${unit.type}`;
   
+  // 🏗️ إذا كانت الوحدة فيها تكيف مع عائق إنشائي
+  if (unit.obstacleFit && obstacles) {
+    const obstacle = obstacles.find(o => o.id === unit.obstacleFit!.obstacleId);
+    if (obstacle) {
+      return [
+        ...obstacleAwareCarcassPieces(unit, obstacle, unit.obstacleFit.clearanceMm, label),
+        ...doorPieces(unit, label, visualGroupId),
+        ...drawerFrontPieces(unit, label, visualGroupId),
+      ];
+    }
+  }
+
+  // 🏗️ إذا كانت الوحدة فيها إعدادات إحاطة جهاز
+  if (unit.applianceHousingConfig) {
+    const appHeight = applianceHeightMm || unit.dimensions.heightMm * 0.7; // افتراضي 70% من ارتفاع الوحدة
+    return [
+      ...applianceHousingCarcassPieces(unit, appHeight, unit.applianceHousingConfig, label),
+      ...(unit.applianceHousingConfig.removeDoorAtApplianceZone
+        ? [] // لا أبواب في منطقة الجهاز
+        : doorPieces(unit, label, visualGroupId)
+      ),
+      ...drawerFrontPieces(unit, label, visualGroupId),
+    ];
+  }
+
   if (unit.type.startsWith('corner')) {
     return [
       ...cornerCarcassPieces(unit, label),
@@ -318,10 +636,15 @@ export function unitToCutPieces(unit: KitchenUnit): CutPiece[] {
  * يحول كل وحدات المشروع لقايمة قطع كاملة، مقسّمة حسب الخامة واللون معاً
  * (كل خامة + لون لازم يكون على ألواح منفصلة — الأخضر مع الأخضر، الأبيض مع الأبيض)
  */
-export function projectToCutPiecesByMaterial(units: KitchenUnit[]): Record<string, CutPiece[]> {
+export function projectToCutPiecesByMaterial(
+  units: KitchenUnit[],
+  obstacles?: StructuralObstacle[],
+  applianceHeights?: Record<string, number>
+): Record<string, CutPiece[]> {
   const grouped: Record<string, CutPiece[]> = {};
   for (const unit of units) {
-    const pieces = unitToCutPieces(unit);
+    const appHeight = applianceHeights?.[unit.id];
+    const pieces = unitToCutPieces(unit, obstacles, appHeight);
     for (const piece of pieces) {
       // المفتاح = materialId + colorId عشان الألوان المختلفة تكون على ألواح منفصلة
       const key = `${piece.materialId}__${piece.colorId}`;

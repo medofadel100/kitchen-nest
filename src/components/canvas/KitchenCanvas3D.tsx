@@ -8,17 +8,35 @@ import { formatMeasurement } from '@/utils/measurements';
 import * as THREE from 'three';
 import { Move, Scaling, RefreshCw, Copy, EyeOff, Edit2, Trash2 } from 'lucide-react';
 import { Appliance3D } from './Appliance3D';
+import { getWallsFromPolygon, getPolygonBoundingBox } from '@/lib/roomGeometry';
+import { RoomWall } from '@/types';
+import { SceneExporter, SceneExporterHandle } from './SceneExporter';
+import { NotchedPanelMesh } from './NotchedPanel';
+import { PanelNotch } from '@/types';
 
-export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) => {
-  const { units, room, displayUnit, selectedElement, selectElement, updateUnitPosition, updateUnitDimensions, duplicateElement, toggleElementVisibility, deleteUnit, deleteRoomFixture, deleteRoomObstacle } = useProjectStore();
+export const KitchenCanvas3D = ({
+  readOnly = false,
+  exporterRef,
+}: {
+  readOnly?: boolean;
+  exporterRef?: React.RefObject<SceneExporterHandle>;
+}) => {
+  const { units, room, displayUnit, selectedElement, selectElement, updateUnitPosition, updateUnitDimensions, duplicateElement, toggleElementVisibility, deleteUnit, deleteRoomFixture, deleteRoomObstacle, visibleWalls } = useProjectStore();
   const [transformMode, setTransformMode] = useState<'translate' | 'scale'>('translate');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string, type: 'unit' | 'fixture' | 'obstacle' } | null>(null);
   const orbitRef = useRef<any>(null);
 
   const SCALE_3D = 0.001; 
 
-  const roomWidthM = room ? room.widthMm * SCALE_3D : 5;
-  const roomLengthM = room ? room.lengthMm * SCALE_3D : 5;
+  const roomBBox = useMemo(() => {
+    if (room?.polygonMm?.length) return getPolygonBoundingBox(room.polygonMm);
+    return { minX: 0, minY: 0, maxX: room?.widthMm ?? 5000, maxY: room?.lengthMm ?? 5000, width: room?.widthMm ?? 5000, height: room?.lengthMm ?? 5000 };
+  }, [room]);
+
+  const roomWidthM = roomBBox.width * SCALE_3D;
+  const roomLengthM = roomBBox.height * SCALE_3D;
+  const roomCenterX = (roomBBox.minX + roomBBox.maxX) / 2 * SCALE_3D;
+  const roomCenterZ = (roomBBox.minY + roomBBox.maxY) / 2 * SCALE_3D;
   const roomHeightM = room ? room.heightMm * SCALE_3D : 2.8;
 
   const resetCamera = () => {
@@ -27,52 +45,134 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
     }
   };
 
-  // Helper to create walls
-  const createWallShape = (width: number, extendLeft: boolean, extendRight: boolean, fixtures: any[], filterHole: (fix: any) => boolean, mapFx: (fix: any) => number) => {
+  // Helper to create wall shape from RoomWall with fixture holes
+  const createWallShapeForWall = (wall: RoomWall, fixtures: any[]) => {
+    const wallLengthM = wall.lengthMm * SCALE_3D;
     const shape = new THREE.Shape();
-    const startX = extendLeft ? -0.1 : 0;
-    const endX = width + (extendRight ? 0.1 : 0);
-    
-    shape.moveTo(startX, 0);
-    shape.lineTo(endX, 0);
-    shape.lineTo(endX, roomHeightM);
-    shape.lineTo(startX, roomHeightM);
-    shape.lineTo(startX, 0);
 
-    fixtures?.filter(f => !f.isHidden).forEach(fix => {
-      if (filterHole(fix)) {
-         const fw = fix.widthMm * SCALE_3D;
-         const fh = fix.heightMm * SCALE_3D;
-         const fz = fix.zMm * SCALE_3D; 
-         const fx = mapFx(fix) * SCALE_3D;
-         
-         const hole = new THREE.Path();
-         hole.moveTo(fx, fz);
-         hole.lineTo(fx + fw, fz);
-         hole.lineTo(fx + fw, fz + fh);
-         hole.lineTo(fx, fz + fh);
-         hole.lineTo(fx, fz);
-         shape.holes.push(hole);
-      }
-    });
+    shape.moveTo(0, 0);
+    shape.lineTo(wallLengthM, 0);
+    shape.lineTo(wallLengthM, roomHeightM);
+    shape.lineTo(0, roomHeightM);
+    shape.lineTo(0, 0);
+
+    const angleRad = wall.angleDeg * (Math.PI / 180);
+    const cosA = Math.cos(angleRad);
+    const sinA = Math.sin(angleRad);
+
+    fixtures
+      ?.filter((f) => !f.isHidden && (f.type === 'door' || f.type === 'window'))
+      .forEach((fix) => {
+        // Project fixture center onto this wall
+        const fx = fix.xMm - wall.startPoint.xMm;
+        const fy = fix.yMm - wall.startPoint.yMm;
+        const alongWall = fx * cosA + fy * sinA;
+        const perpDist = Math.abs(-fx * sinA + fy * cosA);
+
+        if (perpDist < 200 && alongWall >= -50 && alongWall <= wall.lengthMm + 50) {
+          const fw = fix.widthMm * SCALE_3D;
+          const fh = fix.heightMm * SCALE_3D;
+          const fz = fix.zMm * SCALE_3D;
+          const fxPos = Math.max(0, Math.min(wallLengthM - fw, alongWall * SCALE_3D));
+
+          const hole = new THREE.Path();
+          hole.moveTo(fxPos, fz);
+          hole.lineTo(fxPos + fw, fz);
+          hole.lineTo(fxPos + fw, fz + fh);
+          hole.lineTo(fxPos, fz + fh);
+          hole.lineTo(fxPos, fz);
+          shape.holes.push(hole);
+        }
+      });
+
     return shape;
   };
 
-  const backWallShape = useMemo(() => createWallShape(roomWidthM, true, true, room?.fixtures || [], f => f.yMm < 150, f => f.xMm), [room, roomWidthM, roomHeightM, SCALE_3D]);
-  const frontWallShape = useMemo(() => createWallShape(roomWidthM, true, true, room?.fixtures || [], f => f.yMm > room!.lengthMm - 150, f => f.xMm), [room, roomWidthM, roomHeightM, SCALE_3D]);
-  const leftWallShape = useMemo(() => createWallShape(roomLengthM, false, false, room?.fixtures || [], f => f.xMm < 150, f => f.yMm), [room, roomLengthM, roomHeightM, SCALE_3D]);
-  const rightWallShape = useMemo(() => createWallShape(roomLengthM, false, false, room?.fixtures || [], f => f.xMm > room!.widthMm - 150, f => f.yMm), [room, roomLengthM, roomHeightM, SCALE_3D]);
+  // Memoized wall mesh to prevent recreating extrudeGeometry on every render
+  const WallMesh = ({
+    wall,
+    idx,
+    visible,
+    transparent,
+  }: {
+    wall: RoomWall;
+    idx: number;
+    visible: boolean;
+    transparent: boolean;
+  }) => {
+    const fixtures = room?.fixtures || [];
+
+    const wallShape = useMemo(
+      () => createWallShapeForWall(wall, fixtures),
+      // createWallShapeForWall depends on: SCALE_3D, roomHeightM
+      // and on wall + fixtures contents.
+      [wall, fixtures, roomHeightM]
+    );
+
+    const extrudeArgs = useMemo(
+      () => [wallShape, { depth: 0.1, bevelEnabled: false }] as const,
+      [wallShape]
+    );
+
+    const xPos = wall.startPoint.xMm * SCALE_3D;
+    const zPos = wall.startPoint.yMm * SCALE_3D;
+    const angleRad = wall.angleDeg * (Math.PI / 180);
+
+    if (!visible) return null;
+
+    return (
+      <mesh
+        position={[xPos, 0, zPos]}
+        rotation={[0, -angleRad, 0]}
+        castShadow
+        receiveShadow
+      >
+        <extrudeGeometry args={extrudeArgs as any} />
+        <meshStandardMaterial
+          color="#e4e4e7"
+          transparent={transparent}
+          opacity={transparent ? 0.25 : 1}
+          depthWrite={!transparent}
+        />
+      </mesh>
+    );
+  };
+
+  // Get walls from polygon for non-rectangular room support
+  const roomWalls = useMemo(() => {
+    if (room && room.polygonMm && room.polygonMm.length >= 3) {
+      return getWallsFromPolygon(room.polygonMm);
+    }
+    return [];
+  }, [room]);
+
+  // Floor shape from polygon
+  const floorShape = useMemo(() => {
+    if (!room?.polygonMm?.length) return null;
+    const shape = new THREE.Shape();
+    room.polygonMm.forEach((p, i) => {
+      const x = p.xMm * SCALE_3D;
+      const y = p.yMm * SCALE_3D;
+      if (i === 0) shape.moveTo(x, y);
+      else shape.lineTo(x, y);
+    });
+    shape.closePath();
+    return shape;
+  }, [room, SCALE_3D]);
 
   // لإغلاق القائمة عند الضغط في أي مكان
   const handlePointerMissed = () => {
-    selectElement(null);
+    if (!readOnly) selectElement(null);
     setContextMenu(null);
   };
 
   return (
     <div 
       className="w-full h-full relative bg-zinc-900"
-      onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        if (readOnly) setContextMenu(null);
+      }}
       onClick={() => setContextMenu(null)}
     >
       
@@ -102,7 +202,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
       )}
 
       <Canvas 
-        camera={{ position: [0, roomHeightM + 2, roomLengthM + 2], fov: 50 }}
+        camera={{ position: [roomCenterX, roomHeightM + 2, roomCenterZ + roomLengthM + 2], fov: 50 }}
         onPointerMissed={handlePointerMissed}
       >
         <color attach="background" args={['#18181b']} />
@@ -111,33 +211,58 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
         <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
         <Environment preset="apartment" background={false} />
         
-        {/* Floor */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[roomWidthM / 2, 0, roomLengthM / 2]} receiveShadow>
-          <planeGeometry args={[roomWidthM, roomLengthM]} />
-          <meshStandardMaterial color="#27272a" />
-        </mesh>
+        {/* Floor from polygon */}
+        {floorShape && (
+          <group>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
+              <shapeGeometry args={[floorShape]} />
+              <meshStandardMaterial color="#27272a" side={THREE.DoubleSide} />
+            </mesh>
+            {/* Floor edge outline */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
+              <shapeGeometry args={[floorShape]} />
+              <meshBasicMaterial color="#3f3f46" wireframe />
+            </mesh>
+          </group>
+        )}
 
-        {/* Solid Walls (Back and Left) */}
-        <mesh position={[0, 0, -0.1]} castShadow receiveShadow>
-          <extrudeGeometry args={[backWallShape, { depth: 0.1, bevelEnabled: false }]} />
-          <meshStandardMaterial color="#e4e4e7" />
-        </mesh>
+        {/* Walls from polygonMm */}
+        {roomWalls.map((wall, idx) => {
+          // Determine wall visibility based on visibleWalls state
+          // For rectangular rooms: idx 0 = back, 1 = right, 2 = front, 3 = left
+          // For non-rectangular rooms, show all walls by default
+          const isBackWall = idx === 0;
+          const isRightWall = idx === 1;
+          const isFrontWall = idx === 2;
+          const isLeftWall = idx === 3;
 
-        <mesh position={[-0.1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} castShadow receiveShadow>
-          <extrudeGeometry args={[leftWallShape, { depth: 0.1, bevelEnabled: false }]} />
-          <meshStandardMaterial color="#e4e4e7" />
-        </mesh>
+          // For non-rectangular rooms (more than 4 walls), always show all walls
+          const isNonRectangular = roomWalls.length > 4;
 
-        {/* Transparent Walls (Front and Right) */}
-        <mesh position={[0, 0, roomLengthM]} castShadow receiveShadow>
-          <extrudeGeometry args={[frontWallShape, { depth: 0.1, bevelEnabled: false }]} />
-          <meshStandardMaterial color="#e4e4e7" transparent opacity={0.2} depthWrite={false} />
-        </mesh>
+          const isVisible =
+            isNonRectangular ||
+            (isBackWall && visibleWalls.back) ||
+            (isRightWall && visibleWalls.right) ||
+            (isFrontWall && visibleWalls.front) ||
+            (isLeftWall && visibleWalls.left);
 
-        <mesh position={[roomWidthM, 0, 0]} rotation={[0, -Math.PI / 2, 0]} castShadow receiveShadow>
-          <extrudeGeometry args={[rightWallShape, { depth: 0.1, bevelEnabled: false }]} />
-          <meshStandardMaterial color="#e4e4e7" transparent opacity={0.2} depthWrite={false} />
-        </mesh>
+          // Only make walls transparent if they are explicitly hidden
+          // For rectangular rooms: front and left walls can be transparent when hidden
+          const isTransparent = !isNonRectangular && (
+            (isFrontWall && !visibleWalls.front) ||
+            (isLeftWall && !visibleWalls.left)
+          );
+
+          return (
+            <WallMesh
+              key={wall.id}
+              wall={wall}
+              idx={idx}
+              visible={isVisible}
+              transparent={isTransparent}
+            />
+          );
+        })}
 
         {/* Kitchen Units */}
         {units.filter(u => !u.isHidden).map((unit) => {
@@ -180,9 +305,11 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
 
           const unitContent = (
             <group 
-              onClick={(e) => { 
+              onClick={(e) => {
                 if (readOnly) return;
-                e.stopPropagation(); selectElement(unit.id, 'unit', e.shiftKey); setContextMenu(null); 
+                e.stopPropagation();
+                selectElement(unit.id, 'unit', e.shiftKey);
+                setContextMenu(null);
               }}
               onContextMenu={(e) => {
                 if (readOnly) return;
@@ -272,6 +399,145 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                     </group>
                   )}
                 </group>
+              ) : unit.obstacleFit && room?.obstacles ? (
+                /* Obstacle-aware carcass — single panels with L-shaped notch */
+                (() => {
+                  const obstacle = room.obstacles.find(o => o.id === unit.obstacleFit!.obstacleId);
+                  if (!obstacle) {
+                    return (
+                      <group>
+                        <Box args={[0.018, h, d]} position={[-w/2 + 0.009, 0, 0]} castShadow receiveShadow>
+                          <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                        </Box>
+                        <Box args={[0.018, h, d]} position={[w/2 - 0.009, 0, 0]} castShadow receiveShadow>
+                          <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                        </Box>
+                        <Box args={[w - 0.036, 0.018, d]} position={[0, h/2 - 0.009, 0]} castShadow receiveShadow>
+                          <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                        </Box>
+                        <Box args={[w - 0.036, 0.018, d]} position={[0, -h/2 + 0.009, 0]} castShadow receiveShadow>
+                          <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                        </Box>
+                        <Box args={[w - 0.036, h - 0.036, 0.018]} position={[0, 0, -d/2 + 0.009]} castShadow receiveShadow>
+                          <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                        </Box>
+                        <Box args={[w, h, d]}>
+                          <meshBasicMaterial color={isSelected ? '#000000' : '#ffffff'} wireframe />
+                        </Box>
+                      </group>
+                    );
+                  }
+
+                  const clearanceMm = unit.obstacleFit!.clearanceMm || 0;
+                  const PT = 18;
+                  const widthMm = unit.dimensions.widthMm;
+                  const depthMm = unit.dimensions.depthMm;
+                  const heightMm = unit.dimensions.heightMm;
+                  const innerWidthMm = widthMm - 2 * PT;
+
+                  const localObsLeft = obstacle.xMm - unit.position.xMm - clearanceMm;
+                  const localObsRight = obstacle.xMm + obstacle.widthMm - unit.position.xMm + clearanceMm;
+                  const isNearRightEdge = localObsRight >= widthMm;
+                  const columnSide: "left" | "right" = isNearRightEdge ? "right" : "left";
+                  const notchWidth = Math.min(localObsRight, widthMm) - Math.max(localObsLeft, 0);
+                  const notchDepth = obstacle.depthMm + clearanceMm;
+
+                  const horizontalNotch: PanelNotch = {
+                    cornerX: columnSide,
+                    cornerY: "back",
+                    notchWidthMm: notchWidth,
+                    notchDepthMm: notchDepth,
+                  };
+                  const backNotch: PanelNotch = { ...horizontalNotch };
+                  const sideNotch = (side: "left" | "right"): PanelNotch | undefined => {
+                    if (side !== columnSide) return undefined;
+                    return {
+                      cornerX: side === "left" ? "left" : "right",
+                      cornerY: "back",
+                      notchWidthMm: notchDepth,
+                      notchDepthMm: notchWidth,
+                    };
+                  };
+
+                  const shelfCount = unit.shelfCount || 0;
+                  const shelfDepthMm = depthMm - 20;
+                  const shelfElements: React.ReactNode[] = [];
+                  for (let si = 0; si < shelfCount; si++) {
+                    const spacing = h / (shelfCount + 1);
+                    const shelfY = -h / 2 + spacing * (si + 1);
+                    shelfElements.push(
+                      <NotchedPanelMesh
+                        key={`obs-shelf-${si}`}
+                        faceWidthMm={innerWidthMm}
+                        faceHeightMm={shelfDepthMm}
+                        thicknessMm={16}
+                        notch={horizontalNotch}
+                        position={[0, shelfY, 0]}
+                        rotation={[-Math.PI / 2, 0, 0]}
+                        color={color}
+                        isSelected={isSelected}
+                      />
+                    );
+                  }
+
+                  return (
+                    <group>
+                      <NotchedPanelMesh
+                        faceWidthMm={depthMm}
+                        faceHeightMm={heightMm}
+                        thicknessMm={PT}
+                        notch={sideNotch("left")}
+                        position={[-w / 2 + PT * SCALE_3D / 2, 0, 0]}
+                        rotation={[0, Math.PI / 2, 0]}
+                        color={color}
+                        isSelected={isSelected}
+                      />
+                      <NotchedPanelMesh
+                        faceWidthMm={depthMm}
+                        faceHeightMm={heightMm}
+                        thicknessMm={PT}
+                        notch={sideNotch("right")}
+                        position={[w / 2 - PT * SCALE_3D / 2, 0, 0]}
+                        rotation={[0, -Math.PI / 2, 0]}
+                        color={color}
+                        isSelected={isSelected}
+                      />
+                      <NotchedPanelMesh
+                        faceWidthMm={innerWidthMm}
+                        faceHeightMm={depthMm}
+                        thicknessMm={PT}
+                        notch={horizontalNotch}
+                        position={[0, h / 2 - PT * SCALE_3D / 2, 0]}
+                        rotation={[-Math.PI / 2, 0, 0]}
+                        color={color}
+                        isSelected={isSelected}
+                      />
+                      <NotchedPanelMesh
+                        faceWidthMm={innerWidthMm}
+                        faceHeightMm={depthMm}
+                        thicknessMm={PT}
+                        notch={horizontalNotch}
+                        position={[0, -h / 2 + PT * SCALE_3D / 2, 0]}
+                        rotation={[-Math.PI / 2, 0, 0]}
+                        color={color}
+                        isSelected={isSelected}
+                      />
+                      <NotchedPanelMesh
+                        faceWidthMm={innerWidthMm}
+                        faceHeightMm={heightMm}
+                        thicknessMm={PT}
+                        notch={backNotch}
+                        position={[0, 0, -d / 2 + PT * SCALE_3D / 2]}
+                        color={color}
+                        isSelected={isSelected}
+                      />
+                      {shelfElements}
+                      <Box args={[w, h, d]}>
+                        <meshBasicMaterial color={isSelected ? '#000000' : '#ffffff'} wireframe />
+                      </Box>
+                    </group>
+                  );
+                })()
               ) : (
                 <>
                   {/* Hollow Carcass - built from 5 panels like corner units */}
@@ -381,6 +647,8 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                {/* 3D Details: Doors, Drawers, Countertop */}
               {(() => {
                 if (isFridge || isOven) return null; // Skip doors/drawers/countertop for full appliances
+                // Note: keep this IIFE stable; any bracket mismatch breaks TS/JSX parsing.
+
 
                 const details: any[] = [];
                 const doorT = 0.018; // 18mm thickness
@@ -545,7 +813,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
                 // Interior back panel texture (visible when doors open)
                 const renderInterior = () => {
                   return (
-                    <group>
+                    <group key="interior">
                       {/* Back wall of carcass */}
                       <Box args={[w - 0.004, h - 0.004, 0.003]} position={[0, 0, -d/2 + 0.005]}>
                         <meshStandardMaterial color="#f5f5f4" roughness={0.6} />
@@ -805,7 +1073,7 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
             </group>
           );
 
-          if (isPrimarySelected) {
+          if (isPrimarySelected && !readOnly) {
             return (
               <TransformControls
                 key={unit.id}
@@ -922,21 +1190,22 @@ export const KitchenCanvas3D = ({ readOnly = false }: { readOnly?: boolean }) =>
         <OrbitControls 
           ref={orbitRef} 
           makeDefault 
-          target={[roomWidthM / 2, 1, roomLengthM / 2]} 
+          target={[roomCenterX, roomHeightM / 2, roomCenterZ]} 
           enableDamping
           dampingFactor={0.08}
           enableZoom
           minDistance={1.5}
-          maxDistance={roomLengthM + roomWidthM}
+          maxDistance={Math.max(roomLengthM, roomWidthM) * 2}
           maxPolarAngle={Math.PI / 2 - 0.05}
           minPolarAngle={0.1}
           zoomSpeed={0.9}
         />
+        <SceneExporter ref={exporterRef ?? null} />
         <Grid infiniteGrid fadeDistance={20} sectionColor="#10b981" cellColor="#3f3f46" />
       </Canvas>
 
       {/* Context Menu HTML Overlay */}
-      {contextMenu && (
+      {contextMenu && !readOnly && (
         <div 
           className="absolute z-50 bg-zinc-900 border border-zinc-700 shadow-2xl rounded-xl py-2 w-52 text-right overflow-hidden backdrop-blur-xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}

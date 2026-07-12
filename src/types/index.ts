@@ -122,6 +122,23 @@ export interface LedConfig {
   brightness?: number;            // شدة الإضاءة 0-1
 }
 
+export interface ObstacleFitConfig {
+  obstacleId: string;
+  clearanceMm: number;
+}
+
+export interface ApplianceHousingConfig {
+  applianceId: string;
+  clearanceMm: {
+    leftMm: number;
+    rightMm: number;
+    topMm: number;
+    backMm: number;
+  };
+  removeDoorAtApplianceZone: boolean;
+  hasBaseUnderneath: boolean;
+}
+
 export interface KitchenUnit {
   id: string;
   type: UnitType;
@@ -156,6 +173,9 @@ export interface KitchenUnit {
   sinkConfig?: {
     hasFalseDrawer?: boolean;  // هل يوجد درج وهمي فوق الباب؟
   };
+  // 🏗️ التكيف مع العوائق الإنشائية والأجهزة
+  obstacleFit?: ObstacleFitConfig;
+  applianceHousingConfig?: ApplianceHousingConfig;
 }
 
 // ---------- عناصر ثابتة في الفراغ (Room Fixtures & Structure) ----------
@@ -176,6 +196,12 @@ export interface RoomFixture {
   rotationDeg?: number;
   notes?: string;
   isHidden?: boolean;
+  // خصائص الباب
+  doorColorHex?: string; // لون الباب
+  frameColorHex?: string; // لون الفريم/الخشب
+  isTransparent?: boolean; // هل الباب شفاف (مكان فارغ في الحائط)
+  // خصائص الشباك
+  sashColorHex?: string; // لون الأزاز (الزجاج)
 }
 
 export interface StructuralObstacle {
@@ -189,13 +215,22 @@ export interface StructuralObstacle {
   isHidden?: boolean;
 }
 
+// Room Wall - derived entity from polygonMm
+export interface RoomWall {
+  id: string;              // e.g., "wall_0", "wall_1"... based on polygonMm order
+  startPoint: { xMm: number; yMm: number };
+  endPoint: { xMm: number; yMm: number };
+  lengthMm: number;         // Calculated automatically
+  angleDeg: number;         // Angle relative to horizontal, calculated automatically
+}
+
 export interface Room {
   id: string;
   name: string;
   widthMm: number;
   lengthMm: number;
   heightMm: number;
-  polygonMm: { xMm: number; yMm: number }[]; // For non-rectangular rooms
+  polygonMm: { xMm: number; yMm: number }[]; // For non-rectangular rooms - THE SOURCE OF TRUTH
   fixtures: RoomFixture[];
   obstacles: StructuralObstacle[];
 }
@@ -380,6 +415,10 @@ export interface KitchenProject {
   // Filler panels and end panels
   fillerPanels?: FillerPanel[];
   endPanels?: EndPanel[];
+
+  // رابط مشاركة آمن — يُولَّد مرة واحدة بـ nanoid(16) ويُحفظ على Firestore
+  // لو مش موجود يعني المشروع لسه ما اتشاركش مع العميل
+  shareToken?: string;
 }
 
 // ---------- التسعير (Pricing) ----------
@@ -417,6 +456,15 @@ export interface ProjectCostSummary {
 
 // ---------- Nesting ----------
 
+// Panel Notch - for cutting L-shaped pieces around columns
+export interface PanelNotch {
+  // الزاوية اللي بيتقرض منها جزء (أي زاوية من الأربعة)
+  cornerX: "left" | "right";   // على أي جنب من عرض القطعة
+  cornerY: "front" | "back";   // على أي جنب من عمق/ارتفاع القطعة (حسب نوع القطعة)
+  notchWidthMm: number;         // عرض الجزء المقروض
+  notchDepthMm: number;         // عمق الجزء المقروض (جوه القطعة)
+}
+
 export interface CutPiece {
   id: string;           // مرجع للوحدة والجزء (مثال: unit_1_side_left)
   widthMm: number;
@@ -428,6 +476,7 @@ export interface CutPiece {
   canRotate: boolean;
   visualGroupId?: string; // لجمع القطع المتجاورة بنفس اللون/الثمرة
   edgesToBind?: ("top" | "bottom" | "left" | "right")[];
+  notch?: PanelNotch;  // 🆕 لو موجودة، القطعة مش مستطيل كامل
 }
 
 export interface PlacedPiece extends CutPiece {

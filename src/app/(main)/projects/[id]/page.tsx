@@ -32,6 +32,7 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
   const [isProductionOpen, setIsProductionOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isLoadingProject, setIsLoadingProject] = React.useState(true);
+  const [isSharingLink, setIsSharingLink] = React.useState(false);
 
   const handleSaveProject = async () => {
     setIsSaving(true);
@@ -58,10 +59,30 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
     }
   };
 
-  const handleShare = () => {
-    const url = `${window.location.origin}/share/${params.id}`;
-    navigator.clipboard.writeText(url);
-    alert("تم نسخ رابط المشروع للعميل بنجاح! 🔗");
+  const handleShare = async () => {
+    setIsSharingLink(true);
+    try {
+      // تحقق أولاً لو المشروع عنده shareToken محفوظ
+      const currentProject = await getProjectById(params.id);
+      let token = currentProject?.shareToken;
+
+      if (!token) {
+        // ولّد token جديد عشوائي وآمن واحفظه على Firestore
+        const { nanoid } = await import('nanoid');
+        token = nanoid(16);
+        const { updateProject } = await import("@/lib/firebase/projects");
+        await updateProject(params.id, { shareToken: token });
+      }
+
+      const url = `${window.location.origin}/share/${token}`;
+      await navigator.clipboard.writeText(url);
+      alert(`تم نسخ رابط العميل الآمن! 🔗\n\n${url}`);
+    } catch (error) {
+      console.error('Share error:', error);
+      alert('حدث خطأ أثناء إنشاء رابط المشاركة.');
+    } finally {
+      setIsSharingLink(false);
+    }
   };
 
   React.useEffect(() => {
@@ -177,10 +198,11 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
 
             <button 
               onClick={handleShare}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-blue-500 hover:bg-blue-400 text-zinc-950 shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all"
+              disabled={isSharingLink}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all ${isSharingLink ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-400 text-zinc-950 shadow-[0_0_20px_rgba(59,130,246,0.3)]'}`}
             >
               <Share2 size={18} />
-              مشاركة للعميل
+              {isSharingLink ? 'جاري إنشاء الرابط...' : 'مشاركة للعميل'}
             </button>
 
             <button 

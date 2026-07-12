@@ -85,10 +85,13 @@ function packOneSheet(
 
     placed.push({
       ...piece,
+      // IMPORTANT: keep notch so CuttingListPrint can render polygon instead of rect
+      notch: piece.notch,
       xMm: rect.xMm,
       yMm: rect.yMm,
       rotated: bestRotated,
     });
+
 
     const newFree = splitFreeRect(rect, { widthMm: placedWidth, heightMm: placedHeight });
     freeRects.splice(bestRectIndex, 1, ...newFree);

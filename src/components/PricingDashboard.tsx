@@ -14,7 +14,7 @@ import { CuttingListPrint } from './print/CuttingListPrint';
 import { NestingVisualizerList } from './NestingVisualizer';
 
 export const PricingDashboard = () => {
-  const { units, projectDetails } = useProjectStore();
+  const { units, projectDetails, room } = useProjectStore();
 
   const materialsById = useMemo(() => {
     const map: Record<string, Material> = {};
@@ -33,7 +33,7 @@ export const PricingDashboard = () => {
     updatedAt: new Date().toISOString(),
     status: 'design',
     profitMarginPercent: 20,
-    room: { id: "dummy", name: "dummy", widthMm: 3000, lengthMm: 3000, heightMm: 2800, obstacles: [], polygonMm: [], fixtures: [] },
+    room: room ?? { id: "dummy", name: "dummy", widthMm: 3000, lengthMm: 3000, heightMm: 2800, obstacles: [], polygonMm: [], fixtures: [] },
     appliances: [],
     settings: {} as any,
     payments: [],
@@ -41,7 +41,7 @@ export const PricingDashboard = () => {
   };
 
   const pricingResult = calculateProjectCost(dummyProject, materialsById);
-  const piecesByMaterial = projectToCutPiecesByMaterial(units);
+  const piecesByMaterial = projectToCutPiecesByMaterial(units, room?.obstacles);
   
   // Calculate total sheets by running nesting for all used materials
   let totalSheets = 0;

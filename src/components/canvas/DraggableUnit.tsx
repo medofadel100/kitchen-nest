@@ -4,7 +4,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Group, Rect, Text, Line, Transformer } from 'react-konva';
 import { KitchenUnit } from '@/types';
 import { useProjectStore } from '@/store/projectStore';
-import { clampUnitToRoom, findSmartUnitPlacement, getUnitBoundingBoxes, snapUnitToNeighbors, snapUnitToRoom, snapValueToGrid, checkUnitCollision } from '@/utils/geometry';
+import { clampUnitToRoom, findSmartUnitPlacement, getUnitBoundingBoxes, snapUnitToNeighbors, snapUnitToRoom, snapUnitToRoomWithAngle, snapValueToGrid, checkUnitCollision } from '@/utils/geometry';
+
 import Konva from 'konva';
 
 interface DraggableUnitProps {
@@ -106,7 +107,12 @@ export const DraggableUnit: React.FC<DraggableUnitProps> = ({ unit, onContextMen
     }
 
     const finalUnit = { ...unit, position: { ...unit.position, rotationDeg: currentRotation as any } };
-    const otherUnits = units.filter(u => u.id !== unit.id);
+    // 🏗️ استثناء الأجهزة الكهربائية من فحص التصادم — عشان نسمح بوضع وحدة إحاطة جهاز فوقها
+    // يتم استثناء الوحدات التي:
+    // 1- تحتوي على applianceHousingConfig (أي وحدة إحاطة جهاز مثل إحاطة تلاجة/فرن)
+    // 2- أو الوحدات التي لها label جهاز (للتوافق مع الأجهزة المضافة يدوياً)
+    const applianceLabels = ['ثلاجة', 'فريزر', 'فرن', 'بوتاجاز', 'غسالة أطباق', 'غسالة', 'مجفف', 'حوض'];
+    const otherUnits = units.filter(u => u.id !== unit.id && !applianceLabels.some(l => u.label?.includes(l)) && !u.applianceHousingConfig);
     const collision = checkUnitCollision(finalUnit, otherUnits, newXMm, newYMm);
     if (collision && room) {
       const safePlacement = findSmartUnitPlacement(finalUnit, room, otherUnits, newXMm, newYMm, GRID_SNAP_MM, SNAP_THRESHOLD_MM);
