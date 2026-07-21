@@ -1255,7 +1255,7 @@ export const KitchenCanvas3D = ({
           }
 
           return (
-            <group key={unit.id} position={[xPos, yPos, zPos]} rotation={[0, rotationRad, 0]}>
+            <group key={unit.id} position={[xPos, yPos, zPos]} rotation={[0, rotationRad, 0]} userData={{ type: "unit" }}>
               {unitContent}
             </group>
           );

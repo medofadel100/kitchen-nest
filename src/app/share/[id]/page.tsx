@@ -126,14 +126,14 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
   }, []);
 
   // تصدير المشهد كـ GLB وتحضيره للـ AR
-  const handleExportGLB = async () => {
+  const handleExportGLB = async (unitsOnly = false) => {
     if (!exporterRef.current) {
       alert('يرجى الانتظار حتى يكتمل تحميل المشهد ثلاثي الأبعاد أولاً.');
       return;
     }
     setIsExporting(true);
     try {
-      const blob = await exporterRef.current.exportGLB();
+      const blob = await exporterRef.current.exportGLB(unitsOnly);
       const url = URL.createObjectURL(blob);
 
       // نظّف الـ URL القديم لو موجود
@@ -148,15 +148,15 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
     }
   };
 
-  const handleDownloadGLB = async () => {
+  const handleDownloadGLB = async (unitsOnly = false) => {
     if (!exporterRef.current) return;
     setIsExporting(true);
     try {
-      const blob = await exporterRef.current.exportGLB();
+      const blob = await exporterRef.current.exportGLB(unitsOnly);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `kitchen-${project?.projectName ?? 'design'}.glb`;
+      a.download = `kitchen-${unitsOnly ? 'units' : project?.projectName ?? 'design'}.glb`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
@@ -262,9 +262,9 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
               مشاركة على واتساب
             </a>
 
-            {/* زرار AR */}
+            {/* زرار AR — بالغرفة */}
             <button
-              onClick={handleExportGLB}
+              onClick={() => handleExportGLB(false)}
               disabled={isExporting}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
                 isExporting
@@ -273,18 +273,34 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
               }`}
             >
               <Smartphone size={16} />
-              {isExporting ? 'جاري التحضير...' : 'شوفه في مكانك (AR)'}
+              {isExporting ? 'جاري التحضير...' : 'AR بالغرفة'}
+            </button>
+
+            {/* زرار AR — الخزائن فقط */}
+            <button
+              onClick={() => handleExportGLB(true)}
+              disabled={isExporting}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                isExporting
+                  ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                  : 'bg-indigo-500 hover:bg-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.3)]'
+              }`}
+            >
+              <Smartphone size={16} />
+              {isExporting ? 'جاري التحضير...' : 'AR الخزائن فقط'}
             </button>
 
             {/* زرار تحميل GLB */}
-            <button
-              onClick={handleDownloadGLB}
-              disabled={isExporting}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-all"
-            >
-              <Download size={16} />
-              تحميل 3D
-            </button>
+            <div className="relative group">
+              <button
+                onClick={() => handleDownloadGLB(false)}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-all"
+              >
+                <Download size={16} />
+                تحميل 3D
+              </button>
+            </div>
 
             {/* بيانات العميل */}
             <div className="flex items-center gap-4 bg-zinc-950/50 px-4 py-2 rounded-2xl border border-zinc-800 hidden md:flex">
