@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, Box, Text, TransformControls, ContactShadows } from '@react-three/drei';
+import { OrbitControls, Grid, Box, Text, TransformControls } from '@react-three/drei';
 import { useProjectStore } from '@/store/projectStore';
 import { formatMeasurement } from '@/utils/measurements';
 import * as THREE from 'three';
@@ -25,6 +25,8 @@ export const KitchenCanvas3D = ({
   const [transformMode, setTransformMode] = useState<'translate' | 'scale'>('translate');
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string, type: 'unit' | 'fixture' | 'obstacle' } | null>(null);
   const orbitRef = useRef<any>(null);
+  const [contextLost, setContextLost] = useState(false);
+  const [canvasKey, setCanvasKey] = useState(0);
 
   const SCALE_3D = 0.001; 
 
@@ -210,41 +212,43 @@ export const KitchenCanvas3D = ({
       )}
 
       <Canvas 
+        key={canvasKey}
         camera={{ position: [roomCenterX, roomHeightM + 2, roomCenterZ + roomLengthM + 2], fov: 50 }}
         onPointerMissed={handlePointerMissed}
         shadows
-        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1, outputColorSpace: THREE.SRGBColorSpace }}
-        dpr={[1, 2]}
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0, outputColorSpace: THREE.SRGBColorSpace, powerPreference: 'default' }}
+        dpr={[1, 1]}
+        onCreated={({ gl }) => {
+          gl.domElement.addEventListener('webglcontextlost', (e) => {
+            e.preventDefault();
+            console.warn('WebGL context lost — will recover');
+            setContextLost(true);
+          });
+          gl.domElement.addEventListener('webglcontextrestored', () => {
+            console.info('WebGL context restored');
+            setContextLost(false);
+          });
+        }}
       >
         <color attach="background" args={['#1a1a2e']} />
-        <fog attach="fog" args={['#1a1a2e', 12, 35]} />
 
-        {/* Key light — main directional with soft shadows */}
+        {/* Single key light with moderate shadow map */}
         <directionalLight
           position={[8, 12, 6]}
-          intensity={1.8}
+          intensity={1.5}
           castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
-          shadow-camera-far={50}
-          shadow-camera-left={-10}
-          shadow-camera-right={10}
-          shadow-camera-top={10}
-          shadow-camera-bottom={-10}
-          shadow-bias={-0.0005}
-          shadow-normalBias={0.02}
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+          shadow-camera-far={30}
+          shadow-camera-left={-8}
+          shadow-camera-right={8}
+          shadow-camera-top={8}
+          shadow-camera-bottom={-8}
+          shadow-bias={-0.001}
           color="#fff5e6"
         />
-        {/* Fill light — softer, cooler, from opposite side */}
-        <directionalLight position={[-6, 8, -4]} intensity={0.4} color="#e0e7ff" />
-        {/* Rim light — subtle back light for depth */}
-        <directionalLight position={[0, 6, -10]} intensity={0.3} color="#fde68a" />
-        {/* Ambient base — very subtle to lift shadows */}
-        <ambientLight intensity={0.15} />
-        {/* Hemisphere light for natural sky/ground color bleed */}
-        <hemisphereLight args={['#b0c4de', '#8b7355', 0.3]} />
-
-        <Environment preset="apartment" background={false} environmentIntensity={0.6} />
+        <ambientLight intensity={0.35} />
+        <hemisphereLight args={['#b0c4de', '#5a5040', 0.4]} />
         
         {/* Floor from polygon */}
         {floorShape && (
@@ -264,16 +268,6 @@ export const KitchenCanvas3D = ({
             </mesh>
           </group>
         )}
-
-        {/* Soft contact shadows under all objects */}
-        <ContactShadows
-          position={[0, 0.001, 0]}
-          opacity={0.3}
-          scale={Math.max(roomWidthM || 8, roomLengthM || 8) + 4}
-          blur={2}
-          far={3}
-          color="#000000"
-        />
 
         {/* Walls from polygonMm */}
         {roomWalls.map((wall, idx) => {
@@ -1348,6 +1342,20 @@ export const KitchenCanvas3D = ({
         <SceneExporter ref={exporterRef ?? null} />
         <Grid infiniteGrid fadeDistance={20} fadeStrength={1.5} sectionColor="#2563eb" cellColor="#27272a" sectionSize={1} cellSize={0.25} position={[0, -0.001, 0]} />
       </Canvas>
+
+      {contextLost && (
+        <div className="absolute inset-0 flex items-center justify-center bg-zinc-900/90 z-40">
+          <div className="text-center">
+            <p className="text-white text-lg mb-4">حدث مشكلة في الرسوم ثلاثية الأبعاد</p>
+            <button
+              onClick={() => { setContextLost(false); setCanvasKey(k => k + 1); }}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-500"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Context Menu HTML Overlay */}
       {contextMenu && (
