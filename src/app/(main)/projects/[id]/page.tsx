@@ -44,7 +44,7 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
       const { updateProject } = await import("@/lib/firebase/projects");
       
       const dataToSave = {
-        room: state.room || undefined,
+        ...(state.room ? { room: state.room } : {}),
         units: state.units,
         // appliances: state.appliances, // Not in store yet, maybe added later
         settings: state.projectSettings,

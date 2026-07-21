@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, Box, Text, TransformControls, ContactShadows, MeshReflectorMaterial } from '@react-three/drei';
+import { OrbitControls, Grid, Environment, Box, Text, TransformControls, ContactShadows } from '@react-three/drei';
 import { useProjectStore } from '@/store/projectStore';
 import { formatMeasurement } from '@/utils/measurements';
 import * as THREE from 'three';
@@ -251,18 +251,10 @@ export const KitchenCanvas3D = ({
           <group>
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
               <shapeGeometry args={[floorShape]} />
-              <MeshReflectorMaterial
-                blur={[300, 100]}
-                resolution={1024}
-                mixBlur={0.8}
-                mixStrength={0.4}
-                roughness={0.7}
-                depthScale={0.8}
-                minDepthThreshold={0.4}
-                maxDepthThreshold={1.2}
+              <meshStandardMaterial
                 color="#2a2a2a"
+                roughness={0.85}
                 metalness={0.05}
-                mirror={0.3}
               />
             </mesh>
             {/* Floor edge outline */}
@@ -276,10 +268,10 @@ export const KitchenCanvas3D = ({
         {/* Soft contact shadows under all objects */}
         <ContactShadows
           position={[0, 0.001, 0]}
-          opacity={0.4}
+          opacity={0.3}
           scale={Math.max(roomWidthM || 8, roomLengthM || 8) + 4}
-          blur={2.5}
-          far={4}
+          blur={2}
+          far={3}
           color="#000000"
         />
 

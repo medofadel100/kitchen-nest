@@ -62,11 +62,25 @@ export const createProject = async (project: Omit<KitchenProject, "id">): Promis
   }
 };
 
+// Firestore rejects `undefined` values — recursively strip them
+const stripUndefined = (obj: Record<string, unknown>): Record<string, unknown> => {
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [
+        k,
+        v !== null && typeof v === "object" && !Array.isArray(v)
+          ? stripUndefined(v as Record<string, unknown>)
+          : v,
+      ])
+  );
+};
+
 // Update an existing project
 export const updateProject = async (projectId: string, data: Partial<KitchenProject>): Promise<void> => {
   try {
     const docRef = doc(db, PROJECTS_COLLECTION, projectId);
-    await updateDoc(docRef, data);
+    await updateDoc(docRef, stripUndefined(data as Record<string, unknown>) as any);
   } catch (error) {
     console.error("Error updating project: ", error);
     throw error;
