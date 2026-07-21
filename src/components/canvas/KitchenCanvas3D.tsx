@@ -63,17 +63,21 @@ export const KitchenCanvas3D = ({
     fixtures
       ?.filter((f) => !f.isHidden && (f.type === 'door' || f.type === 'window'))
       .forEach((fix) => {
-        // Project fixture center onto this wall
-        const fx = fix.xMm - wall.startPoint.xMm;
-        const fy = fix.yMm - wall.startPoint.yMm;
+        // fix.xMm/fix.yMm = fixture LEFT EDGE in world coords.
+        // Project the fixture CENTER onto the wall direction.
+        const centerWorldX = fix.xMm + fix.widthMm / 2;
+        const centerWorldY = fix.yMm;
+        const fx = centerWorldX - wall.startPoint.xMm;
+        const fy = centerWorldY - wall.startPoint.yMm;
         const alongWall = fx * cosA + fy * sinA;
         const perpDist = Math.abs(-fx * sinA + fy * cosA);
 
-        if (perpDist < 200 && alongWall >= -50 && alongWall <= wall.lengthMm + 50) {
+        if (perpDist < 200 && alongWall >= 0 && alongWall <= wall.lengthMm) {
           const fw = fix.widthMm * SCALE_3D;
           const fh = fix.heightMm * SCALE_3D;
           const fz = fix.zMm * SCALE_3D;
-          const fxPos = Math.max(0, Math.min(wallLengthM - fw, alongWall * SCALE_3D));
+          // Clamp so the hole stays fully inside the wall bounds
+          const fxPos = Math.max(0, Math.min(wallLengthM - fw, alongWall * SCALE_3D - fw / 2));
 
           const hole = new THREE.Path();
           hole.moveTo(fxPos, fz);
@@ -551,50 +555,60 @@ export const KitchenCanvas3D = ({
                       
                       {/* أغطية الوفوهات الداخلية للعمود بالخشب — كل وجة جوه الوحدة تتغطى */}
                       {(() => {
-                        const coverD = (obstacle.depthMm + clearanceMm) * SCALE_3D;
-                        const coverW = (obstacle.widthMm + 2 * clearanceMm) * SCALE_3D;
+                        const PT = 0.018;
                         const coverH = h;
-                        // obsLocalX/Y بالنسبة لحافة الوحدة الشمال-الخلف (0..w)
-                        // لكن الـ group ممركز عند (0,0,0) فنحتاج نطرح w/2 و d/2
                         const obsLocalX = (obstacle.xMm - unit.position.xMm) * SCALE_3D - w / 2;
                         const obsLocalY = (obstacle.yMm - unit.position.yMm) * SCALE_3D - d / 2;
                         const obsLocalRight = (obstacle.xMm + obstacle.widthMm - unit.position.xMm) * SCALE_3D - w / 2;
                         const obsLocalFront = (obstacle.yMm + obstacle.depthMm - unit.position.yMm) * SCALE_3D - d / 2;
                         const obsCenterX = (obsLocalX + obsLocalRight) / 2;
-                        const obsCenterZ = (obsLocalY + obsLocalFront) / 2;
+                        const obsWidth3D = obsLocalRight - obsLocalX;
+
+                        // Clamp Z range to unit boundaries — cover only the part inside the unit
+                        const clampedBack = Math.max(obsLocalY, -d / 2);
+                        const clampedFront = Math.min(obsLocalFront, d / 2);
+                        const clampedDepth = Math.max(0, clampedFront - clampedBack);
+                        const clampedCenterZ = (clampedBack + clampedFront) / 2;
+
+                        // Clamp X range for front/back covers
+                        const clampedLeft = Math.max(obsLocalX, -w / 2);
+                        const clampedRight = Math.min(obsLocalRight, w / 2);
+                        const clampedWidth = Math.max(0, clampedRight - clampedLeft);
+                        const clampedCenterX = (clampedLeft + clampedRight) / 2;
+
                         const covers: React.ReactNode[] = [];
 
-                        // 1. الوجه الأيسر للعمود — لو جوه الوحدة (x = obsLocalX)
+                        // 1. الوجه الأيسر للعمود — غطاء على الجهة الشمال (x = obsLocalX)
                         if (obstacle.xMm > unit.position.xMm + clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_left" args={[0.018, coverH, coverD]} position={[obsLocalX, 0, obsCenterZ]} castShadow receiveShadow>
+                            <Box key="col_cover_left" args={[PT, coverH, clampedDepth]} position={[obsLocalX - PT / 2, 0, clampedCenterZ]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );
                         }
 
-                        // 2. الوجه الأيمن للعمود — لو جوه الوحدة (x = obsLocalRight)
+                        // 2. الوجه الأيمن للعمود — غطاء على الجهة اليمنى (x = obsLocalRight)
                         if (obstacle.xMm + obstacle.widthMm < unit.position.xMm + widthMm - clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_right" args={[0.018, coverH, coverD]} position={[obsLocalRight, 0, obsCenterZ]} castShadow receiveShadow>
+                            <Box key="col_cover_right" args={[PT, coverH, clampedDepth]} position={[obsLocalRight + PT / 2, 0, clampedCenterZ]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );
                         }
 
-                        // 3. الوجه الأمامي للعمود — لو جوه الوحدة (z = obsLocalFront)
+                        // 3. الوجه الأمامي للعمود — غطاء على الجهة الأمامية (z = obsLocalFront)
                         if (obstacle.yMm + obstacle.depthMm < unit.position.yMm + depthMm - clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_front" args={[coverW, coverH, 0.018]} position={[obsCenterX, 0, obsLocalFront]} castShadow receiveShadow>
+                            <Box key="col_cover_front" args={[clampedWidth, coverH, PT]} position={[clampedCenterX, 0, obsLocalFront + PT / 2]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );
                         }
 
-                        // 4. الوجه الخلفي للعمود — لو جوه الوحدة (z = obsLocalY)
+                        // 4. الوجه الخلفي للعمود — غطاء على الجهة الخلفية (z = obsLocalY)
                         if (obstacle.yMm > unit.position.yMm + clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_back" args={[coverW, coverH, 0.018]} position={[obsCenterX, 0, obsLocalY]} castShadow receiveShadow>
+                            <Box key="col_cover_back" args={[clampedWidth, coverH, PT]} position={[clampedCenterX, 0, obsLocalY - PT / 2]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );
@@ -822,35 +836,45 @@ export const KitchenCanvas3D = ({
                   doorsHeight -= (unit.drawerCount * actualDrawerH);
                 }
 
-                // Hinges for doors (more realistic)
-                const renderHinges = (hingeX: number, hingeYStart: number, hingeH: number, hingeCount: number, doorW: number, hingeSide: 'left' | 'right') => {
+                // Fixed hinges (carcass leaf + pin) — rendered outside rotation group so they stay attached to side panel
+                const renderFixedHinges = (hingeYStart: number, hingeH: number, hingeCount: number, doorW: number, hingeSide: 'left' | 'right') => {
                   if (!hingeCount || hingeCount === 0) return null;
                   const spacing = hingeH / (hingeCount + 1);
                   const side = hingeSide === 'left' ? -1 : 1;
                   return Array.from({ length: hingeCount }).map((_, hi) => {
                     const hingeY = hingeYStart - hingeH/2 + spacing * (hi + 1);
-                    // المفصلة بت连接 الباب بالجنب side panel - المفصلة عند الخلف مش الأمام
-                    const hingeZ = -doorT / 2 + 0.004; // على الوجه الداخلي للباب (جنب الكاركاس)
+                    // Outer face of side panel = z=d/2 in unit coords = z=-doorT/2 in door group coords
+                    const hingeZ = -doorT / 2;
                     return (
-                      <group key={`hinge-${hi}`}>
-                        {/* Hinge leaf (carcass side) — على الوجه الداخلي للباب */}
-                        <Box args={[0.008, 0.022, 0.014]} position={[side * (doorW/2 - 0.001), hingeY, hingeZ]} castShadow>
+                      <group key={`fixed-hinge-${hi}`}>
+                        <Box args={[0.008, 0.022, 0.014]} position={[side * 0.001, hingeY, hingeZ]} castShadow>
                           <meshStandardMaterial color="#78716c" metalness={0.7} roughness={0.3} />
                         </Box>
-                        {/* Hinge pin (cylinder) */}
-                        <group position={[side * doorW/2, hingeY, hingeZ]} rotation={[0, 0, Math.PI/2]}>
+                        <group position={[0, hingeY, hingeZ]} rotation={[0, 0, Math.PI/2]}>
                           <mesh castShadow>
                             <cylinderGeometry args={[0.003, 0.003, 0.022, 8]} />
                             <meshStandardMaterial color="#a8a29e" metalness={0.9} roughness={0.1} />
                           </mesh>
                         </group>
-                        {/* Hinge leaf (door side) - visible when open */}
-                        {unit._3dDoorOpen && (
-                          <mesh position={[side * (doorW/2 + 0.004), hingeY, hingeZ + 0.01]} rotation={[0, side * 1.2, 0]} castShadow>
-                            <boxGeometry args={[0.006, 0.018, 0.014]} />
-                            <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
-                          </mesh>
-                        )}
+                      </group>
+                    );
+                  });
+                };
+
+                // Door-side hinge leaf — rendered inside rotation group so it moves with the door
+                const renderDoorHinges = (hingeYStart: number, hingeH: number, hingeCount: number, doorW: number, hingeSide: 'left' | 'right') => {
+                  if (!hingeCount || hingeCount === 0 || !unit._3dDoorOpen) return null;
+                  const spacing = hingeH / (hingeCount + 1);
+                  const side = hingeSide === 'left' ? -1 : 1;
+                  return Array.from({ length: hingeCount }).map((_, hi) => {
+                    const hingeY = hingeYStart - hingeH/2 + spacing * (hi + 1);
+                    const hingeZ = -doorT / 2;
+                    return (
+                      <group key={`door-hinge-${hi}`}>
+                        <mesh position={[side * (doorW/2 + 0.004), hingeY, hingeZ + 0.01]} rotation={[0, side * 1.2, 0]} castShadow>
+                          <boxGeometry args={[0.006, 0.018, 0.014]} />
+                          <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                        </mesh>
                       </group>
                     );
                   });
@@ -925,6 +949,7 @@ export const KitchenCanvas3D = ({
                     <group key={key}>
                       <group position={[doorCenterX, doorsYStart + doorsHeight/2, frontZ]}>
                         <group position={[pivotPos, 0, 0]}>
+                          {renderFixedHinges(doorsHeight/2, doorsHeight, unit.hingesPerDoor || 2, doorW, hingeSide)}
                           <group rotation={[0, hingeSide === 'left' ? -doorOpenAngle : doorOpenAngle, 0]}>
                             <group position={[-pivotPos, 0, 0]}>
                               {/* Door Frame - Stiles and Rails */}
@@ -1002,7 +1027,7 @@ export const KitchenCanvas3D = ({
                               )}
                               
                               {/* Hinges - positioned on hinge side */}
-                              {renderHinges(pivotPos, doorsHeight/2, doorsHeight, unit.hingesPerDoor || 2, doorW, hingeSide)}
+                              {renderDoorHinges(doorsHeight/2, doorsHeight, unit.hingesPerDoor || 2, doorW, hingeSide)}
                             </group>
                           </group>
                         </group>
