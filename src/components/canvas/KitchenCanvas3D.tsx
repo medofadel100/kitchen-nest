@@ -306,14 +306,30 @@ export const KitchenCanvas3D = ({
           const unitContent = (
             <group 
               onClick={(e) => {
-                if (readOnly) return;
                 e.stopPropagation();
+                if (readOnly) {
+                  // في وضع العرض: السماح بفتح/إغلاق الأبواب بس
+                  const hasDoors = unit.doorCount && unit.doorCount > 0;
+                  const hasDrawers = unit.drawerCount && unit.drawerCount > 0;
+                  if (hasDoors || hasDrawers) {
+                    setContextMenu({ x: e.clientX, y: e.clientY, id: unit.id, type: 'unit' });
+                  }
+                  return;
+                }
                 selectElement(unit.id, 'unit', e.shiftKey);
                 setContextMenu(null);
               }}
               onContextMenu={(e) => {
-                if (readOnly) return;
                 e.stopPropagation();
+                if (readOnly) {
+                  // في وضع العرض: السماح بفتح/إغلاق الأبواب بس
+                  const hasDoors = unit.doorCount && unit.doorCount > 0;
+                  const hasDrawers = unit.drawerCount && unit.drawerCount > 0;
+                  if (hasDoors || hasDrawers) {
+                    setContextMenu({ x: e.clientX, y: e.clientY, id: unit.id, type: 'unit' });
+                  }
+                  return;
+                }
                 selectElement(unit.id, 'unit', e.shiftKey);
                 setContextMenu({ x: e.clientX, y: e.clientY, id: unit.id, type: 'unit' });
               }}
@@ -532,6 +548,45 @@ export const KitchenCanvas3D = ({
                         isSelected={isSelected}
                       />
                       {shelfElements}
+                      
+                      {/* غطاء الوجه الداخلي للعمود بالخشب — بيخفي الخرسانة من جوه */}
+                      {(() => {
+                        const coverD = (obstacle.depthMm + clearanceMm) * SCALE_3D;
+                        const coverW = (obstacle.widthMm + 2 * clearanceMm) * SCALE_3D;
+                        const coverH = h;
+                        const obsLocalX = (obstacle.xMm - unit.position.xMm) * SCALE_3D;
+                        const obsLocalY = (obstacle.yMm - unit.position.yMm) * SCALE_3D;
+
+                        // الغطاء يكون بس على الوجه اللي جوه الوحدة (اللي باين لما نفتح الأبواب)
+                        if (columnSide === 'right') {
+                          // العمود على يمين الوحدة → الغطاء على الوجه الأيسر للعمود (جوا الوحدة)
+                          const coverX = obsLocalX - coverD / 2;
+                          return (
+                            <Box
+                              args={[0.018, coverH, coverD]}
+                              position={[coverX, 0, obsLocalY]}
+                              castShadow
+                              receiveShadow
+                            >
+                              <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
+                            </Box>
+                          );
+                        } else {
+                          // العمود على شمال الوحدة → الغطاء على الوجه الأيمن للعمود (جوا الوحدة)
+                          const coverX = obsLocalX + coverD / 2;
+                          return (
+                            <Box
+                              args={[0.018, coverH, coverD]}
+                              position={[coverX, 0, obsLocalY]}
+                              castShadow
+                              receiveShadow
+                            >
+                              <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
+                            </Box>
+                          );
+                        }
+                      })()}
+                      
                       <Box args={[w, h, d]}>
                         <meshBasicMaterial color={isSelected ? '#000000' : '#ffffff'} wireframe />
                       </Box>
@@ -758,14 +813,16 @@ export const KitchenCanvas3D = ({
                   const side = hingeSide === 'left' ? -1 : 1;
                   return Array.from({ length: hingeCount }).map((_, hi) => {
                     const hingeY = hingeYStart - hingeH/2 + spacing * (hi + 1);
+                    // المفصلة بت连接 الباب بالجنب side panel - المفصلة عند الخلف مش الأمام
+                    const hingeZ = -doorT / 2 + 0.004; // على الوجه الداخلي للباب (جنب الكاركاس)
                     return (
                       <group key={`hinge-${hi}`}>
-                        {/* Hinge leaf (carcass side) */}
-                        <Box args={[0.008, 0.022, 0.014]} position={[side * (doorW/2 - 0.001), hingeY, doorT/2 - 0.007]} castShadow>
+                        {/* Hinge leaf (carcass side) — على الوجه الداخلي للباب */}
+                        <Box args={[0.008, 0.022, 0.014]} position={[side * (doorW/2 - 0.001), hingeY, hingeZ]} castShadow>
                           <meshStandardMaterial color="#78716c" metalness={0.7} roughness={0.3} />
                         </Box>
                         {/* Hinge pin (cylinder) */}
-                        <group position={[side * doorW/2, hingeY, doorT/2 - 0.007]} rotation={[0, 0, Math.PI/2]}>
+                        <group position={[side * doorW/2, hingeY, hingeZ]} rotation={[0, 0, Math.PI/2]}>
                           <mesh castShadow>
                             <cylinderGeometry args={[0.003, 0.003, 0.022, 8]} />
                             <meshStandardMaterial color="#a8a29e" metalness={0.9} roughness={0.1} />
@@ -773,7 +830,7 @@ export const KitchenCanvas3D = ({
                         </group>
                         {/* Hinge leaf (door side) - visible when open */}
                         {unit._3dDoorOpen && (
-                          <mesh position={[side * (doorW/2 + 0.004), hingeY, doorT/2 - 0.007 + 0.01]} rotation={[0, side * 1.2, 0]} castShadow>
+                          <mesh position={[side * (doorW/2 + 0.004), hingeY, hingeZ + 0.01]} rotation={[0, side * 1.2, 0]} castShadow>
                             <boxGeometry args={[0.006, 0.018, 0.014]} />
                             <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
                           </mesh>
@@ -1136,9 +1193,10 @@ export const KitchenCanvas3D = ({
           return (
             <group
               key={obs.id}
-              onClick={(e) => { e.stopPropagation(); selectElement(obs.id, 'obstacle', e.shiftKey); setContextMenu(null); }}
+              onClick={(e) => { e.stopPropagation(); if (readOnly) return; selectElement(obs.id, 'obstacle', e.shiftKey); setContextMenu(null); }}
               onContextMenu={(e) => {
                 e.stopPropagation();
+                if (readOnly) return;
                 selectElement(obs.id, 'obstacle', e.shiftKey);
                 setContextMenu({ x: e.clientX, y: e.clientY, id: obs.id, type: 'obstacle' });
               }}
@@ -1163,14 +1221,15 @@ export const KitchenCanvas3D = ({
             const zPos = (fix.yMm * SCALE_3D) + (d / 2);
             const rotationRad = (fix.rotationDeg || 0) * (Math.PI / -180);
 
-            return (
+              return (
               <group 
                 key={fix.id} 
                 position={[xPos, yPos, zPos]} 
                 rotation={[0, rotationRad, 0]}
-                onClick={(e) => { e.stopPropagation(); selectElement(fix.id, 'fixture', e.shiftKey); setContextMenu(null); }}
+                onClick={(e) => { e.stopPropagation(); if (readOnly) return; selectElement(fix.id, 'fixture', e.shiftKey); setContextMenu(null); }}
                 onContextMenu={(e) => {
                   e.stopPropagation();
+                  if (readOnly) return;
                   selectElement(fix.id, 'fixture', e.shiftKey);
                   setContextMenu({ x: e.clientX, y: e.clientY, id: fix.id, type: 'fixture' });
                 }}
@@ -1205,7 +1264,7 @@ export const KitchenCanvas3D = ({
       </Canvas>
 
       {/* Context Menu HTML Overlay */}
-      {contextMenu && !readOnly && (
+      {contextMenu && (
         <div 
           className="absolute z-50 bg-zinc-900 border border-zinc-700 shadow-2xl rounded-xl py-2 w-52 text-right overflow-hidden backdrop-blur-xl"
           style={{ left: contextMenu.x, top: contextMenu.y }}
@@ -1231,49 +1290,53 @@ export const KitchenCanvas3D = ({
             </button>
           )}
 
-          <button
-            onClick={() => {
-              duplicateElement(contextMenu.id, contextMenu.type);
-              setContextMenu(null);
-            }}
-            className="w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-end gap-3 transition-colors"
-          >
-            تكرار (Copy) <Copy size={16} />
-          </button>
-          
-          <button
-            onClick={() => {
-              toggleElementVisibility(contextMenu.id, contextMenu.type);
-              setContextMenu(null);
-            }}
-            className="w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-end gap-3 transition-colors"
-          >
-            إخفاء / إظهار <EyeOff size={16} />
-          </button>
-          
-          <button
-            onClick={() => {
-              selectElement(contextMenu.id, contextMenu.type);
-              setContextMenu(null);
-            }}
-            className="w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-end gap-3 transition-colors"
-          >
-            تعديل المقاسات <Edit2 size={16} />
-          </button>
-          
-          <div className="h-px bg-zinc-800 my-1"></div>
-          
-          <button
-            onClick={() => {
-              if (contextMenu.type === 'unit') deleteUnit(contextMenu.id);
-              else if (contextMenu.type === 'fixture') deleteRoomFixture(contextMenu.id);
-              else if (contextMenu.type === 'obstacle') deleteRoomObstacle(contextMenu.id);
-              setContextMenu(null);
-            }}
-            className="w-full px-4 py-2 text-sm text-red-400 hover:bg-red-950/30 hover:text-red-300 flex items-center justify-end gap-3 transition-colors"
-          >
-            حذف <Trash2 size={16} />
-          </button>
+          {!readOnly && (
+            <>
+              <button
+                onClick={() => {
+                  duplicateElement(contextMenu.id, contextMenu.type);
+                  setContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-end gap-3 transition-colors"
+              >
+                تكرار (Copy) <Copy size={16} />
+              </button>
+              
+              <button
+                onClick={() => {
+                  toggleElementVisibility(contextMenu.id, contextMenu.type);
+                  setContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-end gap-3 transition-colors"
+              >
+                إخفاء / إظهار <EyeOff size={16} />
+              </button>
+              
+              <button
+                onClick={() => {
+                  selectElement(contextMenu.id, contextMenu.type);
+                  setContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-800 hover:text-white flex items-center justify-end gap-3 transition-colors"
+              >
+                تعديل المقاسات <Edit2 size={16} />
+              </button>
+              
+              <div className="h-px bg-zinc-800 my-1"></div>
+              
+              <button
+                onClick={() => {
+                  if (contextMenu.type === 'unit') deleteUnit(contextMenu.id);
+                  else if (contextMenu.type === 'fixture') deleteRoomFixture(contextMenu.id);
+                  else if (contextMenu.type === 'obstacle') deleteRoomObstacle(contextMenu.id);
+                  setContextMenu(null);
+                }}
+                className="w-full px-4 py-2 text-sm text-red-400 hover:bg-red-950/30 hover:text-red-300 flex items-center justify-end gap-3 transition-colors"
+              >
+                حذف <Trash2 size={16} />
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

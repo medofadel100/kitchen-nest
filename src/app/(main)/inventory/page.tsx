@@ -6,7 +6,7 @@ import { RoleGuard } from '@/components/RoleGuard';
 import { InventoryItem } from '@/types';
 import { getInventory, addStock } from '@/lib/firebase/inventory';
 import { useSettingsStore } from '@/store/settingsStore';
-import { Package, Plus, Layers, Wrench, Search, History } from 'lucide-react';
+import { Package, Plus, Layers, Wrench, Search, History, AlertTriangle, TrendingDown, BarChart3 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function InventoryPage() {
@@ -155,29 +155,82 @@ export default function InventoryPage() {
             <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {displayItems.map(item => (
-              <div key={item.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 hover:border-amber-500/50 transition-colors">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400">
-                    {activeTab === 'material' ? <Layers size={20} /> : <Wrench size={20} />}
+          <>
+            {/* Summary Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
+                    <Package size={20} />
                   </div>
-                  <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">{item.category}</span>
+                  <span className="text-zinc-400 text-sm font-bold">إجمالي الأصناف</span>
                 </div>
-                <h3 className="font-bold text-white mb-4 line-clamp-1">{item.nameAr}</h3>
-                
-                <div className="flex justify-between items-end border-t border-zinc-800/50 pt-4">
-                  <span className="text-zinc-500 text-sm">الرصيد المتاح:</span>
-                  <div className="flex items-baseline gap-1">
-                    <span className={`text-2xl font-black ${item.quantityInStock <= 3 && item.quantityInStock > 0 ? 'text-orange-400' : item.quantityInStock === 0 ? 'text-red-500' : 'text-emerald-400'}`}>
-                      {item.quantityInStock}
-                    </span>
-                    <span className="text-zinc-500 text-xs">{item.unit}</span>
-                  </div>
-                </div>
+                <div className="text-3xl font-black text-white">{displayItems.length}</div>
               </div>
-            ))}
-          </div>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <span className="text-zinc-400 text-sm font-bold">أصناف نفدت (0)</span>
+                </div>
+                <div className="text-3xl font-black text-red-400">{displayItems.filter(i => i.quantityInStock === 0).length}</div>
+              </div>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-400">
+                    <TrendingDown size={20} />
+                  </div>
+                  <span className="text-zinc-400 text-sm font-bold">أصناف قرب النفاد (≤3)</span>
+                </div>
+                <div className="text-3xl font-black text-orange-400">{displayItems.filter(i => i.quantityInStock > 0 && i.quantityInStock <= 3).length}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {displayItems.map(item => (
+                <div key={item.id} className={`bg-zinc-900 border rounded-2xl p-5 hover:border-amber-500/50 transition-colors ${
+                  item.quantityInStock === 0 ? 'border-red-500/30 bg-red-500/5' :
+                  item.quantityInStock <= 3 ? 'border-orange-500/30 bg-orange-500/5' :
+                  'border-zinc-800'
+                }`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                      item.quantityInStock === 0 ? 'bg-red-500/10 text-red-400' :
+                      item.quantityInStock <= 3 ? 'bg-orange-500/10 text-orange-400' :
+                      'bg-zinc-800 text-zinc-400'
+                    }`}>
+                      {item.quantityInStock === 0 ? <AlertTriangle size={20} /> :
+                       item.quantityInStock <= 3 ? <TrendingDown size={20} /> :
+                       (activeTab === 'material' ? <Layers size={20} /> : <Wrench size={20} />)}
+                    </div>
+                    <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-1 rounded-md">{item.category}</span>
+                  </div>
+                  <h3 className="font-bold text-white mb-4 line-clamp-1">{item.nameAr}</h3>
+                  
+                  <div className="flex justify-between items-end border-t border-zinc-800/50 pt-4">
+                    <span className="text-zinc-500 text-sm">الرصيد المتاح:</span>
+                    <div className="flex items-baseline gap-1">
+                      <span className={`text-2xl font-black ${item.quantityInStock <= 3 && item.quantityInStock > 0 ? 'text-orange-400' : item.quantityInStock === 0 ? 'text-red-500' : 'text-emerald-400'}`}>
+                        {item.quantityInStock}
+                      </span>
+                      <span className="text-zinc-500 text-xs">{item.unit}</span>
+                    </div>
+                  </div>
+                  {item.quantityInStock === 0 && (
+                    <div className="mt-3 text-xs text-red-400 font-bold bg-red-500/10 rounded-lg px-3 py-1.5 text-center">
+                      نفد من المخزن - يرجى الشراء
+                    </div>
+                  )}
+                  {item.quantityInStock > 0 && item.quantityInStock <= 3 && (
+                    <div className="mt-3 text-xs text-orange-400 font-bold bg-orange-500/10 rounded-lg px-3 py-1.5 text-center">
+                      يقترب من النفاد - يُنصح بإعادة الطلب
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
         )}
 
       </div>

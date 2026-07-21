@@ -1,6 +1,6 @@
 import React from 'react';
 import { KitchenProject, Material, NestingResult, PlacedPiece } from '@/types';
-import { getPiecePolygonPoints } from '@/lib/pieceGeometry';
+import { getPiecePolygonPoints, getPieceActualAreaMm2 } from '@/lib/pieceGeometry';
 
 interface CuttingListPrintProps {
   project: KitchenProject;
@@ -18,8 +18,9 @@ export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintPr
             
             // Group identical pieces for the table
             const groupedPieces = sheet.placedPieces.reduce((acc, piece) => {
-              // Group by size and label
-              const key = `${piece.widthMm}x${piece.heightMm}_${piece.label}`;
+              // Group by size, label, and notch info
+              const notchKey = piece.notch ? `_${piece.notch.cornerX}_${piece.notch.cornerY}_${piece.notch.notchWidthMm}x${piece.notch.notchDepthMm}` : '';
+              const key = `${piece.widthMm}x${piece.heightMm}${notchKey}_${piece.label}`;
               if (!acc[key]) {
                 acc[key] = { ...piece, count: 1 };
               } else {
@@ -29,7 +30,8 @@ export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintPr
             }, {} as Record<string, PlacedPiece & { count: number }>);
             
             const partsList = Object.values(groupedPieces);
-            const totalUsedAreaM2 = (sheetW * sheetH * (sheet.utilizationPercent / 100)) / 1000000;
+            // حساب المساحة الفعلية للقطع (مع النوتشات)
+            const totalUsedAreaM2 = sheet.placedPieces.reduce((sum, p) => sum + getPieceActualAreaMm2(p.widthMm, p.heightMm, p.notch) / 1_000_000, 0);
             const totalAreaM2 = (sheetW * sheetH) / 1000000;
             const wasteAreaM2 = totalAreaM2 - totalUsedAreaM2;
 
@@ -66,7 +68,7 @@ export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintPr
                   <div className="text-left text-sm bg-zinc-100 p-3 rounded border border-zinc-200">
                     <p><strong>مقاس اللوح:</strong> {sheetW} × {sheetH} مم</p>
                     <p><strong>عدد القطع:</strong> {sheet.placedPieces.length} قطعة</p>
-                    <p><strong>المساحة المستخدمة:</strong> {totalUsedAreaM2.toFixed(2)} م² ({sheet.utilizationPercent.toFixed(1)}%)</p>
+                    <p><strong>المساحة الفعلية:</strong> {totalUsedAreaM2.toFixed(2)} م² ({((totalUsedAreaM2 / totalAreaM2) * 100).toFixed(1)}%)</p>
                     <p><strong>المساحة المهدرة:</strong> {wasteAreaM2.toFixed(2)} م²</p>
                     <p><strong>ترتيب اللوح:</strong> {sIdx + 1} من {detail.result.sheets.length}</p>
                   </div>
@@ -81,21 +83,41 @@ export const CuttingListPrint = ({ project, nestingDetails }: CuttingListPrintPr
                         <th className="border border-zinc-300 p-1.5">القطعة (Label)</th>
                         <th className="border border-zinc-300 p-1.5">العرض (مم)</th>
                         <th className="border border-zinc-300 p-1.5">الطول (مم)</th>
+                        <th className="border border-zinc-300 p-1.5">المساحة الفعلية</th>
                         <th className="border border-zinc-300 p-1.5">شريط الحرف</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {partsList.map((part, pIdx) => (
-                        <tr key={pIdx}>
-                          <td className="border border-zinc-300 p-1.5 font-bold">{part.count}</td>
-                          <td className="border border-zinc-300 p-1.5 text-right px-3">{part.label}</td>
-                          <td className="border border-zinc-300 p-1.5 font-mono font-bold">{part.widthMm}</td>
-                          <td className="border border-zinc-300 p-1.5 font-mono font-bold">{part.heightMm}</td>
-                          <td className="border border-zinc-300 p-1.5 text-xs text-red-600">
-                            {part.edgesToBind && part.edgesToBind.length > 0 ? part.edgesToBind.join(', ') : 'بدون'}
-                          </td>
-                        </tr>
-                      ))}
+                      {partsList.map((part, pIdx) => {
+                        const actualArea = getPieceActualAreaMm2(part.widthMm, part.heightMm, part.notch);
+                        const hasNotch = !!part.notch;
+                        return (
+                          <tr key={pIdx} className={hasNotch ? 'bg-amber-50' : ''}>
+                            <td className="border border-zinc-300 p-1.5 font-bold">{part.count}</td>
+                            <td className="border border-zinc-300 p-1.5 text-right px-3">
+                              {part.label}
+                              {hasNotch && (
+                                <span className="block text-xs text-amber-600 font-bold mt-0.5">
+                                  ← فيها فتحة عمود (L-shape)
+                                </span>
+                              )}
+                            </td>
+                            <td className="border border-zinc-300 p-1.5 font-mono font-bold">{part.widthMm}</td>
+                            <td className="border border-zinc-300 p-1.5 font-mono font-bold">{part.heightMm}</td>
+                            <td className="border border-zinc-300 p-1.5 font-mono font-bold text-blue-600">
+                              {actualArea.toFixed(0)} مم²
+                              {hasNotch && (
+                                <span className="block text-xs text-amber-600">
+                                  (مخصوم منها {(part.widthMm * part.heightMm - actualArea).toFixed(0)} мм²)
+                                </span>
+                              )}
+                            </td>
+                            <td className="border border-zinc-300 p-1.5 text-xs text-red-600">
+                              {part.edgesToBind && part.edgesToBind.length > 0 ? part.edgesToBind.join(', ') : 'بدون'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

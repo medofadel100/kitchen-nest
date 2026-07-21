@@ -1,27 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
 import type { KitchenProject } from '@/types';
 
-// GET /api/public-project/[id] - Public read access (Admin SDK, bypasses Security Rules)
+async function getProjectById(id: string): Promise<KitchenProject | null> {
+  try {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
+    const db = getAdminDb();
+    const docSnap = await db.collection('projects').doc(id).get();
+    if (!docSnap.exists) return null;
+    return { id: docSnap.id, ...(docSnap.data() as Omit<KitchenProject, 'id'>) };
+  } catch {
+    const { db } = await import('@/lib/firebase');
+    const { doc, getDoc } = await import('firebase/firestore');
+    const docSnap = await getDoc(doc(db, 'projects', id));
+    if (!docSnap.exists()) return null;
+    return { id: docSnap.id, ...(docSnap.data() as Omit<KitchenProject, 'id'>) };
+  }
+}
+
+// GET /api/public-project/[id] - Public read access
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const db = getAdminDb();
-    const docRef = db.collection('projects').doc(params.id);
-    const docSnap = await docRef.get();
+    const project = await getProjectById(params.id);
 
-    if (!docSnap.exists) {
+    if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       );
     }
 
-    const project = { id: docSnap.id, ...(docSnap.data() as Omit<KitchenProject, 'id'>) };
-
-    // ⚠️ نكشف بس البيانات الآمنة للعرض — مش بيانات تكلفة داخلية
     return NextResponse.json({
       id: project.id,
       projectName: project.projectName,

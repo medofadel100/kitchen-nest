@@ -7,12 +7,13 @@ import { RoomSetupWizard } from "@/components/RoomSetupWizard";
 import { useProjectStore } from "@/store/projectStore";
 import { getProjectById } from "@/lib/firebase/projects";
 import { motion, AnimatePresence } from "framer-motion";
-import { Map, Ruler, Settings2, Calculator, PaintBucket, Share2 } from "lucide-react";
+import { Map, Ruler, Settings2, Calculator, PaintBucket, Share2, Bookmark } from "lucide-react";
 import { PricingDashboard } from "@/components/PricingDashboard";
 import { ProjectSettingsModal } from "@/components/ProjectSettingsModal";
 import { ProductionModal } from "@/components/ProductionModal";
 import { Scissors } from "lucide-react";
 import { SplashLoader } from "@/components/SplashLoader";
+import { TemplatesManager } from "@/components/TemplatesManager";
 
 const KitchenCanvas = dynamic(() => import("@/components/canvas/KitchenCanvas").then(mod => mod.KitchenCanvas), { 
   ssr: false,
@@ -30,6 +31,7 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
   const [activeTab, setActiveTab] = React.useState<'design' | 'pricing'>('design');
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const [isProductionOpen, setIsProductionOpen] = React.useState(false);
+  const [isTemplatesOpen, setIsTemplatesOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isLoadingProject, setIsLoadingProject] = React.useState(true);
   const [isSharingLink, setIsSharingLink] = React.useState(false);
@@ -188,6 +190,14 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
               <Settings2 size={20} />
             </button>
 
+            <button
+              onClick={() => setIsTemplatesOpen(true)}
+              className="flex items-center justify-center p-2 rounded-full bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-amber-400 hover:bg-zinc-800 transition-colors"
+              title="القوالب"
+            >
+              <Bookmark size={20} />
+            </button>
+
             <button 
               onClick={handleSaveProject}
               disabled={isSaving}
@@ -217,6 +227,25 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
 
         <ProjectSettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
         <ProductionModal isOpen={isProductionOpen} onClose={() => setIsProductionOpen(false)} projectId={params.id} />
+        <TemplatesManager
+          isOpen={isTemplatesOpen}
+          onClose={() => setIsTemplatesOpen(false)}
+          onLoadTemplate={(tpl) => {
+            const { loadProjectData } = useProjectStore.getState();
+            loadProjectData({
+              ...tpl,
+              projectName: '',
+              workshopId: 'default_workshop',
+              clientName: '',
+              status: 'design',
+              profitMarginPercent: 30,
+              payments: [],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            } as any);
+            setIsTemplatesOpen(false);
+          }}
+        />
         
         <div className="flex-1 relative bg-zinc-950 overflow-hidden flex flex-col">
           {activeTab === 'design' ? (

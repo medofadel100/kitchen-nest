@@ -419,6 +419,11 @@ export interface KitchenProject {
   // رابط مشاركة آمن — يُولَّد مرة واحدة بـ nanoid(16) ويُحفظ على Firestore
   // لو مش موجود يعني المشروع لسه ما اتشاركش مع العميل
   shareToken?: string;
+
+  // سير عمل الموافقة (Client Approval Workflow)
+  approvalStatus?: "pending" | "approved" | "revision_requested";
+  approvalNote?: string; // ملاحظات العميل عند طلب التعديل
+  approvalDate?: string; // تاريخ الموافقة/طلب التعديل
 }
 
 // ---------- التسعير (Pricing) ----------
@@ -557,5 +562,25 @@ export interface InventoryItem {
   nameAr: string; // لسهولة العرض في الجدول دون الحاجة لـ join
   quantityInStock: number; // لو خامة هيكون عدد الألواح، لو إكسسوار هيكون بالعدد أو المتر
   transactions: InventoryTransaction[];
+  updatedAt: string;
+}
+
+// ---------- القوالب (Templates) ----------
+
+export interface KitchenTemplate {
+  id: string;
+  workshopId: string;
+  templateName: string;
+  description?: string;
+  room: Room;
+  units: KitchenUnit[];
+  appliances: KitchenProject['appliances'];
+  selectedCountertopId?: string;
+  selectedSinkId?: string;
+  selectedFaucetId?: string;
+  settings: ProjectSettings;
+  fillerPanels?: FillerPanel[];
+  endPanels?: EndPanel[];
+  createdAt: string;
   updatedAt: string;
 }

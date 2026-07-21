@@ -959,16 +959,27 @@ export const KitchenCanvas = () => {
                 />
                 <Circle x={measureStart.x * SCALE} y={measureStart.y * SCALE} radius={4} fill="#f59e0b" />
                 <Circle x={measureCurrent.x * SCALE} y={measureCurrent.y * SCALE} radius={4} fill="#f59e0b" />
-                <Text
-                  x={(measureStart.x + measureCurrent.x) / 2 * SCALE}
-                  y={(measureStart.y + measureCurrent.y) / 2 * SCALE - 20}
-                  text={formatMeasurement(Math.hypot(measureCurrent.x - measureStart.x, measureCurrent.y - measureStart.y), displayUnit)}
-                  fill="#fcd34d"
-                  fontSize={14}
-                  fontStyle="bold"
-                  align="center"
-                  background="#000" // Konva doesn't support Text background directly, but text will be clear enough
-                />
+                {/* Background rect for distance label */}
+                {(() => {
+                  const dist = Math.hypot(measureCurrent.x - measureStart.x, measureCurrent.y - measureStart.y);
+                  const dx = Math.abs(measureCurrent.x - measureStart.x);
+                  const dy = Math.abs(measureCurrent.y - measureStart.y);
+                  const angle = Math.atan2(measureCurrent.y - measureStart.y, measureCurrent.x - measureStart.x) * (180 / Math.PI);
+                  const midX = (measureStart.x + measureCurrent.x) / 2 * SCALE;
+                  const midY = (measureStart.y + measureCurrent.y) / 2 * SCALE;
+                  const mainText = formatMeasurement(dist, displayUnit);
+                  const detailText = `${formatMeasurement(dx, displayUnit)} × ${formatMeasurement(dy, displayUnit)}`;
+                  const angleText = `${Math.abs(angle).toFixed(1)}°`;
+                  const bgW = 160;
+                  const bgH = 48;
+                  return (
+                    <Group x={midX - bgW / 2} y={midY - bgH - 8}>
+                      <Rect width={bgW} height={bgH} cornerRadius={6} fill="rgba(0,0,0,0.85)" stroke="#f59e0b" strokeWidth={1} />
+                      <Text x={bgW / 2} y={6} text={mainText} fill="#fcd34d" fontSize={14} fontStyle="bold" align="center" width={bgW} />
+                      <Text x={bgW / 2} y={24} text={`${detailText}  ·  ${angleText}`} fill="#a1a1aa" fontSize={10} align="center" width={bgW} />
+                    </Group>
+                  );
+                })()}
               </React.Fragment>
             )}
           </Layer>
@@ -994,6 +1005,14 @@ export const KitchenCanvas = () => {
           <span><kbd className="px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-300">123</kbd> طول + Enter</span>
           <span className="text-emerald-400">قرّب من النقطة الأولى للإغلاق</span>
           {isOrthoMode && <span className="text-sky-400">زوايا قايمة ✓</span>}
+        </div>
+      )}
+
+      {/* Measure tool hints */}
+      {activeTool === 'measure' && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 bg-zinc-950/90 backdrop-blur-md border border-zinc-800 rounded-xl px-4 py-2 text-xs text-zinc-400 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 shadow-xl pointer-events-none">
+          <span className="text-amber-400">اضغط واسحب لقياس المسافة</span>
+          <span>يظهر: المسافة · الأفقي × الرأسي · الزاوية</span>
         </div>
       )}
 

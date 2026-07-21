@@ -1,4 +1,5 @@
 import { CutPiece, PlacedPiece, NestingSheetResult, NestingResult, StandardSheetSize, Material } from "@/types";
+import { getPieceActualAreaMm2 } from "./pieceGeometry";
 
 const SAW_KERF_MM = 4; // سُمك شفرة المنشار
 
@@ -53,11 +54,13 @@ function packOneSheet(
     let bestRectIndex = -1;
     let bestRotated = false;
     let bestWaste = Infinity;
+    // المساحة الفعلية للقطعة (لو فيها نوتش، بيخخص مساحة النوتش)
+    const actualPieceArea = getPieceActualAreaMm2(piece.widthMm, piece.heightMm, piece.notch);
 
     for (let i = 0; i < freeRects.length; i++) {
       const rect = freeRects[i];
       if (piece.widthMm <= rect.widthMm && piece.heightMm <= rect.heightMm) {
-        const waste = rect.widthMm * rect.heightMm - piece.widthMm * piece.heightMm;
+        const waste = rect.widthMm * rect.heightMm - actualPieceArea;
         if (waste < bestWaste) {
           bestWaste = waste;
           bestRectIndex = i;
@@ -65,7 +68,7 @@ function packOneSheet(
         }
       }
       if (piece.canRotate && piece.heightMm <= rect.widthMm && piece.widthMm <= rect.heightMm) {
-        const waste = rect.widthMm * rect.heightMm - piece.widthMm * piece.heightMm;
+        const waste = rect.widthMm * rect.heightMm - actualPieceArea;
         if (waste < bestWaste) {
           bestWaste = waste;
           bestRectIndex = i;
@@ -103,7 +106,7 @@ function packOneSheet(
 type SortStrategy = (a: CutPiece, b: CutPiece) => number;
 
 const STRATEGIES: SortStrategy[] = [
-  (a, b) => (b.widthMm * b.heightMm) - (a.widthMm * a.heightMm), // بالمساحة
+  (a, b) => getPieceActualAreaMm2(b.widthMm, b.heightMm, b.notch) - getPieceActualAreaMm2(a.widthMm, a.heightMm, a.notch), // بالمساحة الفعلية
   (a, b) => b.heightMm - a.heightMm, // بالطول
   (a, b) => b.widthMm - a.widthMm, // بالعرض
   (a, b) => Math.max(b.widthMm, b.heightMm) - Math.max(a.widthMm, a.heightMm), // بأطول ضلع
@@ -129,8 +132,8 @@ function applySortingStrategy(pieces: CutPiece[], strategy: SortStrategy, requir
 
     // رتب المجموعات نفسها بالمساحة الكلية للمجموعة (من الأكبر للأصغر)
     const sortedGroups = Object.values(groups).sort((a, b) => {
-      const areaA = a.reduce((sum, p) => sum + p.widthMm * p.heightMm, 0);
-      const areaB = b.reduce((sum, p) => sum + p.widthMm * p.heightMm, 0);
+      const areaA = a.reduce((sum, p) => sum + getPieceActualAreaMm2(p.widthMm, p.heightMm, p.notch), 0);
+      const areaB = b.reduce((sum, p) => sum + getPieceActualAreaMm2(p.widthMm, p.heightMm, p.notch), 0);
       return areaB - areaA;
     });
 
@@ -163,7 +166,8 @@ function calculateNestingWithStrategy(pieces: CutPiece[], material: Material, st
     }
 
     const sheetAreaM2 = (material.standardSheet.widthMm * material.standardSheet.heightMm) / 1_000_000;
-    const usedAreaM2 = placed.reduce((sum, p) => sum + (p.widthMm * p.heightMm) / 1_000_000, 0);
+    // حساب المساحة الفعلية للقطع (لو فيها notches، بيخخص مساحتها)
+    const usedAreaM2 = placed.reduce((sum, p) => sum + getPieceActualAreaMm2(p.widthMm, p.heightMm, p.notch) / 1_000_000, 0);
     const firstPiece = placed[0];
 
     sheets.push({

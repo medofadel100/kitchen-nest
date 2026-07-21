@@ -450,6 +450,66 @@ function obstacleAwareCarcassPieces(
     });
   }
 
+  // --- تغطية الوجه الداخلي للعمود بالخشب ---
+  // الغطاء يكون بس على الوجه اللي جوه الوحدة (اللي باين لما نفتح الأبواب)
+  // مش على الوجه اللي بره الوحدة
+  //
+  // حساب موضع العمود بالنسبة للوحدة:
+  // localObsLeft/Right = حدود العمود بالنسبة لبداية الوحدة (0..widthMm)
+  // لو العمود عند الطرف الأيمن (localObsRight >= widthMm) → الغطاء على الوجه الأيسر للعمود
+  // لو العمود عند الطرف الأيسر (localObsLeft <= 0) → الغطاء على الوجه الأيمن للعمود
+  // لو العمود في النص → الغطاء على الوجه الأمامي (اللي جوه الوحدة)
+
+  const columnCoverDepth = obstacle.depthMm + clearanceMm; // عمق الغطاء = عمق العمود + الخلوص
+  const columnCoverHeight = heightMm; // ارتفاع الغطاء = ارتفاع الوحدة
+
+  if (columnSide === "right") {
+    // العمود على يمين الوحدة → الغطاء على الوجه الأيسر للعمود (اللي جوه الوحدة)
+    // عرض الغطاء = عمق العمود + الخلوص (لأنه بيلبس على الوجه الجانبي)
+    pieces.push({
+      id: `${unit.id}_column_cover_side`,
+      widthMm: columnCoverDepth,
+      heightMm: columnCoverHeight,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - غطاء عمود (جهة يمين)`,
+      canRotate: false,
+      edgesToBind: ["top", "bottom", "left", "right"],
+    });
+  } else {
+    // العمود على شمال الوحدة → الغطاء على الوجه الأيمن للعمود (اللي جوه الوحدة)
+    pieces.push({
+      id: `${unit.id}_column_cover_side`,
+      widthMm: columnCoverDepth,
+      heightMm: columnCoverHeight,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - غطاء عمود (جهة شمال)`,
+      canRotate: false,
+      edgesToBind: ["top", "bottom", "left", "right"],
+    });
+  }
+
+  // لو العمود بيقع في منتصف الوحدة (مش عند الطرف)، نحتاج غطاء على الوجه الأمامي كمان
+  // ده بيكون لو العمود دخل جوه الوحدة من الأمام
+  const columnEntersFromFront = localObsLeft > 0 && localObsRight < widthMm;
+  if (columnEntersFromFront) {
+    // الغطاء على الوجه الأمامي للعمود (اللي جوه الوحدة)
+    pieces.push({
+      id: `${unit.id}_column_cover_front`,
+      widthMm: obstacle.widthMm + 2 * clearanceMm,
+      heightMm: columnCoverHeight,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - غطاء عمود (وجه أمامي)`,
+      canRotate: false,
+      edgesToBind: ["top", "bottom", "left", "right"],
+    });
+  }
+
   return pieces;
 }
 

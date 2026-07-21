@@ -70,6 +70,77 @@ export function getPiecePolygonPoints(
   ];
 }
 
+/**
+ * يحسب المساحة الفعلية للقطعة (مم²)
+ * لو فيها نوتش (شكل L)، بيخخص مساحة النوتش من المساحة الكلية
+ */
+export function getPieceActualAreaMm2(widthMm: number, heightMm: number, notch?: PanelNotch): number {
+  const totalArea = widthMm * heightMm;
+  
+  if (!notch) return totalArea;
+  
+  const { notchWidthMm, notchDepthMm } = notch;
+  // مساحة النوتش = عرض النوتش × عمق النوتش
+  const notchArea = Math.min(notchWidthMm, widthMm) * Math.min(notchDepthMm, heightMm);
+  
+  return totalArea - notchArea;
+}
+
+/**
+ * يحسب أطوال الأضلاع المطلوب شريط الحرف لها (مم)
+ * بيخصم الأضلاع اللي فيها نوتش
+ */
+export function getPieceEdgeLengthsMm(
+  widthMm: number,
+  heightMm: number,
+  edgesToBind?: ("top" | "bottom" | "left" | "right")[],
+  notch?: PanelNotch
+): { top: number; bottom: number; left: number; right: number } {
+  const defaultEdges = { top: widthMm, bottom: widthMm, left: heightMm, right: heightMm };
+  
+  if (!edgesToBind || edgesToBind.length === 0) {
+    // لو مفيش أضلاع محددة، بنحسب المحيط كامل
+    return defaultEdges;
+  }
+  
+  if (!notch) {
+    return {
+      top: edgesToBind.includes("top") ? widthMm : 0,
+      bottom: edgesToBind.includes("bottom") ? widthMm : 0,
+      left: edgesToBind.includes("left") ? heightMm : 0,
+      right: edgesToBind.includes("right") ? heightMm : 0,
+    };
+  }
+  
+  // لو فيه نوتش، لازم نحسب الجزء المتبقي من كل ضلع
+  const { cornerX, cornerY, notchWidthMm, notchDepthMm } = notch;
+  const nw = Math.min(notchWidthMm, widthMm);
+  const nd = Math.min(notchDepthMm, heightMm);
+  
+  let topLen = edgesToBind.includes("top") ? widthMm : 0;
+  let bottomLen = edgesToBind.includes("bottom") ? widthMm : 0;
+  let leftLen = edgesToBind.includes("left") ? heightMm : 0;
+  let rightLen = edgesToBind.includes("right") ? heightMm : 0;
+  
+  // تعديل الأطوال حسب موقع النوتش
+  if (cornerX === "left") {
+    if (edgesToBind.includes("top")) topLen = widthMm - nw;
+    if (edgesToBind.includes("bottom")) bottomLen = widthMm - nw;
+    if (edgesToBind.includes("left")) leftLen = heightMm - nd;
+  } else {
+    if (edgesToBind.includes("top")) topLen = widthMm - nw;
+    if (edgesToBind.includes("bottom")) bottomLen = widthMm - nw;
+    if (edgesToBind.includes("right")) rightLen = heightMm - nd;
+  }
+  
+  return {
+    top: topLen,
+    bottom: bottomLen,
+    left: leftLen,
+    right: rightLen,
+  };
+}
+
 export function piecePolygonPointsString(piece: CutPiece, offsetXMm = 0, offsetYMm = 0): string {
   const w = piece.widthMm;
   const h = piece.heightMm;

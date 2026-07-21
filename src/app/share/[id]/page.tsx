@@ -7,7 +7,8 @@ import { motion } from 'framer-motion';
 import { KitchenProject } from '@/types';
 import {
   CheckCircle2, Clock, MapPin, Building2,
-  Box, Download, Smartphone
+  Box, Download, Smartphone, MousePointerClick,
+  MessageCircle, Phone, ThumbsUp, Pencil
 } from 'lucide-react';
 import { SceneExporterHandle } from '@/components/canvas/SceneExporter';
 import { SplashLoader } from '@/components/SplashLoader';
@@ -48,6 +49,11 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
   const [glbUrl, setGlbUrl] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [showAR, setShowAR] = useState(false);
+  const [modelViewerReady, setModelViewerReady] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<"pending" | "approved" | "revision_requested" | null>(null);
+  const [approvalNote, setApprovalNote] = useState('');
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+  const [approvalMessage, setApprovalMessage] = useState('');
 
   const exporterRef = useRef<SceneExporterHandle>(null);
   const loadProjectData = useProjectStore(state => state.loadProjectData);
@@ -68,6 +74,7 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
         const data = await response.json();
         setProject(data);
         loadProjectData(data);
+        setApprovalStatus((data as any).approvalStatus || null);
       } catch {
         setError('حدث خطأ في الاتصال بالإنترنت. يرجى المحاولة مرة أخرى.');
       } finally {
@@ -76,6 +83,29 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
     };
     fetchProject();
   }, [params.id, loadProjectData]);
+
+  // تحميل model-viewer script بشكل موثوق
+  useEffect(() => {
+    // التحقق لو الـ script موجود بالفعل
+    if (typeof window !== 'undefined' && window.customElements?.get('model-viewer')) {
+      setModelViewerReady(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js';
+    script.onload = () => {
+      // الانتظار شوية عشان الـ custom element يتسجل
+      setTimeout(() => {
+        setModelViewerReady(true);
+      }, 500);
+    };
+    script.onerror = () => {
+      console.error('Failed to load model-viewer script');
+    };
+    document.head.appendChild(script);
+  }, []);
 
   // تصدير المشهد كـ GLB وتحضيره للـ AR
   const handleExportGLB = async () => {
@@ -118,6 +148,50 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
     }
   };
 
+  const handleApproval = async (action: "approve" | "request_revision") => {
+    if (action === "request_revision" && !approvalNote.trim()) {
+      alert('يرجى كتابة ملاحظات التعديل المطلوب.');
+      return;
+    }
+    setIsSubmittingApproval(true);
+    setApprovalMessage('');
+    try {
+      const res = await fetch(`/api/share/${params.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, note: approvalNote.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || 'حدث خطأ. يرجى المحاولة مرة أخرى.');
+        return;
+      }
+      setApprovalStatus(action === "approve" ? "approved" : "revision_requested");
+      setApprovalMessage(data.message);
+      setApprovalNote('');
+    } catch {
+      alert('حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.');
+    } finally {
+      setIsSubmittingApproval(false);
+    }
+  };
+
+  const getWhatsAppUrl = () => {
+    const phone = project?.clientPhone?.replace(/[^0-9]/g, '');
+    const text = encodeURIComponent(
+      `مرحباً ${project?.clientName}،\n` +
+      `تم مشاركة تصميم مطبخك "${project?.projectName}" معك.\n\n` +
+      `يمكنك الاطلاع على التصميم 3D التفاعلي من الرابط التالي:\n` +
+      `${typeof window !== 'undefined' ? window.location.href : ''}\n\n` +
+      `يمكنك تقليب التصميم من جميع الزوايا وفتح/إغلاق الأبواب لرؤية التقسيمة الداخلية.\n` +
+      `كذلك يمكنك تجربة معاينة AR لرؤية المطبخ في مكانك الحقيقي.\n\n` +
+      `في حالة وجود أي ملاحظات، يمكنك استخدام زر "طلب تعديل" في صفحة التصميم.`
+    );
+    return phone
+      ? `https://wa.me/${phone}?text=${text}`
+      : `https://wa.me/?text=${text}`;
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-screen w-full bg-zinc-950">
@@ -141,13 +215,6 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-zinc-950 text-white" dir="rtl">
 
-      {/* model-viewer script — يُحمَّل مرة واحدة */}
-      <script
-        type="module"
-        src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"
-        async
-      />
-
       {/* Header */}
       <header className="bg-zinc-900/80 backdrop-blur-xl border-b border-zinc-800 p-4 shrink-0 z-20 shadow-xl">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
@@ -166,6 +233,17 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
           </div>
 
           <div className="flex items-center gap-3">
+            {/* زرار WhatsApp */}
+            <a
+              href={getWhatsAppUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+            >
+              <MessageCircle size={16} />
+              مشاركة على واتساب
+            </a>
+
             {/* زرار AR */}
             <button
               onClick={handleExportGLB}
@@ -226,38 +304,45 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
               </div>
 
               {/* model-viewer */}
-              <model-viewer
-                src={glbUrl}
-                ar
-                ar-modes="scene-viewer webxr"
-                camera-controls
-                auto-rotate
-                rotation-per-second="15deg"
-                shadow-intensity="1"
-                style={{ width: '100%', height: '420px', background: '#18181b' }}
-                alt={`تصميم مطبخ — ${project.projectName}`}
-              >
-                <button
-                  slot="ar-button"
-                  style={{
-                    position: 'absolute',
-                    bottom: '16px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '12px 24px',
-                    fontSize: '15px',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    boxShadow: '0 0 20px rgba(139,92,246,0.4)',
-                  }}
+              {modelViewerReady ? (
+                <model-viewer
+                  src={glbUrl}
+                  ar
+                  ar-modes="scene-viewer webxr"
+                  camera-controls
+                  auto-rotate
+                  rotation-per-second="15deg"
+                  shadow-intensity="1"
+                  style={{ width: '100%', height: '420px', background: '#18181b' }}
+                  alt={`تصميم مطبخ — ${project.projectName}`}
                 >
-                  📱 شوف المطبخ في مكانك الحقيقي (AR)
-                </button>
-              </model-viewer>
+                  <button
+                    slot="ar-button"
+                    style={{
+                      position: 'absolute',
+                      bottom: '16px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px 24px',
+                      fontSize: '15px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      boxShadow: '0 0 20px rgba(139,92,246,0.4)',
+                    }}
+                  >
+                    📱 شوف المطبخ في مكانك الحقيقي (AR)
+                  </button>
+                </model-viewer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-[420px] bg-zinc-800">
+                  <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-violet-500 mb-4" />
+                  <p className="text-zinc-400 font-bold">جاري تحميل مكون AR...</p>
+                </div>
+              )}
 
               <div className="p-4 bg-zinc-950/50 text-center">
                 <p className="text-zinc-400 text-sm">
@@ -340,10 +425,65 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
 
             <div className="mt-6 pt-4 border-t border-zinc-800">
               <p className="text-xs text-zinc-500 text-center leading-relaxed">
+                <MousePointerClick size={14} className="inline ml-1 text-emerald-400" />
+                اضغط على أي وحدة مطبخ لفتح/إغلاق أبوابها ورؤية التقسيمة الداخلية.
+                <br />
                 اسحب بأصبعك أو بالماوس لرؤية التصميم من كل الزوايا.
                 <br />
                 اضغط "شوفه في مكانك" لمعاينة AR بالحجم الطبيعي.
               </p>
+            </div>
+
+            {/* سير عمل الموافقة */}
+            <div className="mt-4 pt-4 border-t border-zinc-800">
+              {approvalMessage && (
+                <div className="mb-3 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                  <p className="text-emerald-400 text-sm font-bold">{approvalMessage}</p>
+                </div>
+              )}
+
+              {approvalStatus === "approved" ? (
+                <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <CheckCircle2 size={18} className="text-emerald-400" />
+                  <span className="text-emerald-400 font-bold text-sm">تمت الموافقة على التصميم</span>
+                </div>
+              ) : approvalStatus === "revision_requested" ? (
+                <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                  <Pencil size={18} className="text-amber-400" />
+                  <span className="text-amber-400 font-bold text-sm">تم إرسال طلب التعديل</span>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-center text-zinc-400 text-xs font-bold">هل أعجبك التصميم؟</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleApproval("approve")}
+                      disabled={isSubmittingApproval}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-400 text-white transition-all disabled:opacity-50"
+                    >
+                      <ThumbsUp size={14} />
+                      {isSubmittingApproval ? 'جاري الإرسال...' : 'أوافق على التصميم'}
+                    </button>
+                    <button
+                      onClick={() => handleApproval("request_revision")}
+                      disabled={isSubmittingApproval}
+                      className="flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-sm bg-amber-500 hover:bg-amber-400 text-white transition-all disabled:opacity-50"
+                    >
+                      <Pencil size={14} />
+                      {isSubmittingApproval ? 'جاري الإرسال...' : 'أحتاج تعديل'}
+                    </button>
+                  </div>
+                  {approvalNote !== undefined && (
+                    <textarea
+                      value={approvalNote}
+                      onChange={(e) => setApprovalNote(e.target.value)}
+                      placeholder="اكتب ملاحظاتك هنا (مطلوب عند طلب التعديل)..."
+                      className="w-full p-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-sm resize-none focus:outline-none focus:border-amber-500/50"
+                      rows={2}
+                    />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </motion.div>

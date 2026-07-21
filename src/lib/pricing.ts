@@ -4,6 +4,7 @@ import { nestPiecesForMaterial } from "./nesting";
 import { defaultCountertops } from "../data/countertops";
 import { defaultSinks } from "../data/sinks";
 import { defaultFaucets } from "../data/faucets";
+import { getPieceEdgeLengthsMm } from "./pieceGeometry";
 
 import { useSettingsStore } from "../store/settingsStore";
 import { useProjectStore } from "../store/projectStore";
@@ -55,14 +56,13 @@ export function calculateProjectCost(
     // تكلفة الخامة = عدد الألواح الفعلي × سعر اللوح (مش المساحة النظرية!)
     totalMaterialCost += sheetsNeeded * material.pricePerSheet;
 
-    // edge banding: بنحسب محيط الأضلاع المطلوبة فقط
+    // edge banding: بنحسب أطوال الأضلاع المطلوبة فقط (مع مراعاة النوتشات)
     const edgeBandingLengthM = pieces.reduce((sum, p) => {
       let lengthMm = 0;
-      if (p.edgesToBind) {
-        if (p.edgesToBind.includes("top")) lengthMm += p.widthMm;
-        if (p.edgesToBind.includes("bottom")) lengthMm += p.widthMm;
-        if (p.edgesToBind.includes("left")) lengthMm += p.heightMm;
-        if (p.edgesToBind.includes("right")) lengthMm += p.heightMm;
+      if (p.edgesToBind && p.edgesToBind.length > 0) {
+        // استخدام الدالة الجديدة لحساب الأطوال الفعلية مع النوتشات
+        const edgeLengths = getPieceEdgeLengthsMm(p.widthMm, p.heightMm, p.edgesToBind, p.notch);
+        lengthMm = edgeLengths.top + edgeLengths.bottom + edgeLengths.left + edgeLengths.right;
       } else {
         // لو مفيش، بنحسب المحيط كامل للأمان
         lengthMm = 2 * (p.widthMm + p.heightMm);

@@ -1,34 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminDb } from '@/lib/firebase-admin';
 import type { KitchenProject } from '@/types';
 
-// GET /api/share/[shareToken] — Public read via safe random token (Admin SDK, bypasses Security Rules)
+type ApprovalAction = "approve" | "request_revision";
+
+// محاولة استخدام Admin SDK، fallback للـ client SDK لو مش متاح
+async function queryProjectByShareToken(shareToken: string): Promise<KitchenProject | null> {
+  try {
+    const { getAdminDb } = await import('@/lib/firebase-admin');
+    const db = getAdminDb();
+    const snapshot = await db
+      .collection('projects')
+      .where('shareToken', '==', shareToken)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) return null;
+    const docSnap = snapshot.docs[0];
+    return { id: docSnap.id, ...(docSnap.data() as Omit<KitchenProject, 'id'>) };
+  } catch {
+    // Fallback: use client Firestore when Admin SDK is not configured
+    const { db } = await import('@/lib/firebase');
+    const { collection, query, where, getDocs, limit: fsLimit } = await import('firebase/firestore');
+    const q = query(collection(db, 'projects'), where('shareToken', '==', shareToken), fsLimit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return null;
+    const docSnap = snapshot.docs[0];
+    return { id: docSnap.id, ...(docSnap.data() as Omit<KitchenProject, 'id'>) };
+  }
+}
+
+// GET /api/share/[shareToken] — Public read via safe random token
 export async function GET(
   _request: NextRequest,
   { params }: { params: { shareToken: string } }
 ) {
   try {
-    const db = getAdminDb();
+    const project = await queryProjectByShareToken(params.shareToken);
 
-    // Query projects collection by shareToken field
-    const snapshot = await db
-      .collection('projects')
-      .where('shareToken', '==', params.shareToken)
-      .limit(1)
-      .get();
-
-    if (snapshot.empty) {
+    if (!project) {
       return NextResponse.json(
         { error: 'رابط المشاركة غير صحيح أو انتهت صلاحيته.' },
         { status: 404 }
       );
     }
-
-    const docSnap = snapshot.docs[0];
-    const project = {
-      id: docSnap.id,
-      ...(docSnap.data() as Omit<KitchenProject, 'id'>),
-    };
 
     // ⛔ لا نكشف أي بيانات تكلفة داخلية للورشة
     const grandTotal = (project as any).grandTotal ?? null;
@@ -38,6 +52,7 @@ export async function GET(
       id: project.id,
       projectName: project.projectName,
       clientName: project.clientName,
+      clientPhone: project.clientPhone,
       projectAddress: project.projectAddress,
       engineerName: project.engineerName,
       officeName: project.officeName,
@@ -54,8 +69,12 @@ export async function GET(
       countertopLengthM: project.countertopLengthM,
 
       // ✅ إجمالي سعر واحد فقط (شاملة VAT) — لو موجود في الـ doc
-      // لو المشروع لا يخزن grandTotalWithVat فعليًا، هنسترجع قيم من الحقول المحتملة.
       quoteGrandTotalWithVat: grandTotalWithVat ?? grandTotal,
+
+      // ✅ بيانات الموافقة (للعميل)
+      approvalStatus: project.approvalStatus,
+      approvalNote: project.approvalNote,
+      approvalDate: project.approvalDate,
 
       // ⚠️ مش بنكشف: profitMarginPercent / payments / workshopId
     });
@@ -68,6 +87,67 @@ export async function GET(
       { error: message },
       { status: 500 }
     );
+  }
+}
+
+// POST /api/share/[shareToken] — Client approves or requests revision
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { shareToken: string } }
+) {
+  try {
+    const body = await request.json();
+    const { action, note } = body as { action: ApprovalAction; note?: string };
+
+    if (!action || !["approve", "request_revision"].includes(action)) {
+      return NextResponse.json(
+        { error: "Invalid action. Must be 'approve' or 'request_revision'." },
+        { status: 400 }
+      );
+    }
+
+    const project = await queryProjectByShareToken(params.shareToken);
+    if (!project) {
+      return NextResponse.json(
+        { error: "رابط المشاركة غير صحيح." },
+        { status: 404 }
+      );
+    }
+
+    const now = new Date().toISOString();
+    const approvalStatus = action === "approve" ? "approved" : "revision_requested";
+    const status = action === "approve" ? "approved" : "client_review";
+
+    const updateData: Partial<KitchenProject> = {
+      approvalStatus,
+      status,
+      approvalDate: now,
+      approvalNote: note || undefined,
+      updatedAt: now,
+    };
+
+    // Update via Admin SDK or client SDK fallback
+    try {
+      const { getAdminDb } = await import('@/lib/firebase-admin');
+      const db = getAdminDb();
+      await db.collection('projects').doc(project.id).update(updateData);
+    } catch {
+      const { db } = await import('@/lib/firebase');
+      const { doc, updateDoc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'projects', project.id), updateData as any);
+    }
+
+    return NextResponse.json({
+      success: true,
+      approvalStatus,
+      message: action === "approve"
+        ? "تمت الموافقة على التصميم بنجاح!"
+        : "تم إرسال طلب التعديل بنجاح.",
+    });
+  } catch (error) {
+    console.error("Approval API Error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
