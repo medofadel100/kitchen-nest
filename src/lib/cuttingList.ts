@@ -450,61 +450,88 @@ function obstacleAwareCarcassPieces(
     });
   }
 
-  // --- تغطية الوجه الداخلي للعمود بالخشب ---
-  // الغطاء يكون بس على الوجه اللي جوه الوحدة (اللي باين لما نفتح الأبواب)
-  // مش على الوجه اللي بره الوحدة
+  // --- تغطية كل الوفوهات الداخلية للعمود بالخشب ---
+  // المبدأ: كل وجة من وجوه العمود اللي جوه الوحدة لازم يتغطى بالخشب
+  // عشان الوحدة تكون محكمة من جوه ومفيش خرسانة باينة
   //
-  // حساب موضع العمود بالنسبة للوحدة:
-  // localObsLeft/Right = حدود العمود بالنسبة لبداية الوحدة (0..widthMm)
-  // لو العمود عند الطرف الأيمن (localObsRight >= widthMm) → الغطاء على الوجه الأيسر للعمود
-  // لو العمود عند الطرف الأيسر (localObsLeft <= 0) → الغطاء على الوجه الأيمن للعمود
-  // لو العمود في النص → الغطاء على الوجه الأمامي (اللي جوه الوحدة)
+  // أمثلة:
+  //   - عمود عند يمين الوحدة: وجه واحد (شمال) ← غطاء واحد
+  //   - عمود عند زاوية يمين-خلف: ووجهين (شمال + أمامي) ← غطاءين
+  //   - عمود في منتصف الظهر: تلات وجوه (شمال + يمين + أمامي) ← 3 أغطية
+  //   - عمود في النص تماماً: 4 وجوه ← 4 أغطية
 
-  const columnCoverDepth = obstacle.depthMm + clearanceMm; // عمق الغطاء = عمق العمود + الخلوص
-  const columnCoverHeight = heightMm; // ارتفاع الغطاء = ارتفاع الوحدة
+  const coverHeight = heightMm;
+  const unitLeft = unit.position.xMm;
+  const unitRight = unit.position.xMm + widthMm;
+  const unitBack = unit.position.yMm;
+  const unitFront = unit.position.yMm + depthMm;
 
-  if (columnSide === "right") {
-    // العمود على يمين الوحدة → الغطاء على الوجه الأيسر للعمود (اللي جوه الوحدة)
-    // عرض الغطاء = عمق العمود + الخلوص (لأنه بيلبس على الوجه الجانبي)
+  const obsLeft = obstacle.xMm;
+  const obsRight = obstacle.xMm + obstacle.widthMm;
+  const obsBack = obstacle.yMm;
+  const obsFront = obstacle.yMm + obstacle.depthMm;
+
+  let coverIndex = 0;
+
+  // 1. الوجه الأيسر للعمود (x = obsLeft) — لو جوه الوحدة
+  if (obsLeft > unitLeft + clearanceMm) {
+    coverIndex++;
     pieces.push({
-      id: `${unit.id}_column_cover_side`,
-      widthMm: columnCoverDepth,
-      heightMm: columnCoverHeight,
+      id: `${unit.id}_column_cover_${coverIndex}`,
+      widthMm: obstacle.depthMm + clearanceMm,
+      heightMm: coverHeight,
       materialId: unit.materialId,
       colorId,
       colorHex,
-      label: `${label} - غطاء عمود (جهة يمين)`,
-      canRotate: false,
-      edgesToBind: ["top", "bottom", "left", "right"],
-    });
-  } else {
-    // العمود على شمال الوحدة → الغطاء على الوجه الأيمن للعمود (اللي جوه الوحدة)
-    pieces.push({
-      id: `${unit.id}_column_cover_side`,
-      widthMm: columnCoverDepth,
-      heightMm: columnCoverHeight,
-      materialId: unit.materialId,
-      colorId,
-      colorHex,
-      label: `${label} - غطاء عمود (جهة شمال)`,
+      label: `${label} - غطاء عمود (وجه شمال)`,
       canRotate: false,
       edgesToBind: ["top", "bottom", "left", "right"],
     });
   }
 
-  // لو العمود بيقع في منتصف الوحدة (مش عند الطرف)، نحتاج غطاء على الوجه الأمامي كمان
-  // ده بيكون لو العمود دخل جوه الوحدة من الأمام
-  const columnEntersFromFront = localObsLeft > 0 && localObsRight < widthMm;
-  if (columnEntersFromFront) {
-    // الغطاء على الوجه الأمامي للعمود (اللي جوه الوحدة)
+  // 2. الوجه الأيمن للعمود (x = obsRight) — لو جوه الوحدة
+  if (obsRight < unitRight - clearanceMm) {
+    coverIndex++;
     pieces.push({
-      id: `${unit.id}_column_cover_front`,
+      id: `${unit.id}_column_cover_${coverIndex}`,
+      widthMm: obstacle.depthMm + clearanceMm,
+      heightMm: coverHeight,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - غطاء عمود (وجه يمين)`,
+      canRotate: false,
+      edgesToBind: ["top", "bottom", "left", "right"],
+    });
+  }
+
+  // 3. الوجه الأمامي للعمود (y = obsFront) — لو جوه الوحدة
+  if (obsFront < unitFront - clearanceMm) {
+    coverIndex++;
+    pieces.push({
+      id: `${unit.id}_column_cover_${coverIndex}`,
       widthMm: obstacle.widthMm + 2 * clearanceMm,
-      heightMm: columnCoverHeight,
+      heightMm: coverHeight,
       materialId: unit.materialId,
       colorId,
       colorHex,
       label: `${label} - غطاء عمود (وجه أمامي)`,
+      canRotate: false,
+      edgesToBind: ["top", "bottom", "left", "right"],
+    });
+  }
+
+  // 4. الوجه الخلفي للعمود (y = obsBack) — لو جوه الوحدة
+  if (obsBack > unitBack + clearanceMm) {
+    coverIndex++;
+    pieces.push({
+      id: `${unit.id}_column_cover_${coverIndex}`,
+      widthMm: obstacle.widthMm + 2 * clearanceMm,
+      heightMm: coverHeight,
+      materialId: unit.materialId,
+      colorId,
+      colorHex,
+      label: `${label} - غطاء عمود (وجه خلفي)`,
       canRotate: false,
       edgesToBind: ["top", "bottom", "left", "right"],
     });
