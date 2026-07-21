@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment, Box, Text, TransformControls } from '@react-three/drei';
+import { OrbitControls, Grid, Environment, Box, Text, TransformControls, ContactShadows, MeshReflectorMaterial } from '@react-three/drei';
 import { useProjectStore } from '@/store/projectStore';
 import { formatMeasurement } from '@/utils/measurements';
 import * as THREE from 'three';
@@ -133,10 +133,13 @@ export const KitchenCanvas3D = ({
       >
         <extrudeGeometry args={extrudeArgs as any} />
         <meshStandardMaterial
-          color="#e4e4e7"
+          color="#f0ece4"
+          roughness={0.85}
+          metalness={0.0}
           transparent={transparent}
           opacity={transparent ? 0.25 : 1}
           depthWrite={!transparent}
+          envMapIntensity={0.3}
         />
       </mesh>
     );
@@ -208,27 +211,76 @@ export const KitchenCanvas3D = ({
       <Canvas 
         camera={{ position: [roomCenterX, roomHeightM + 2, roomCenterZ + roomLengthM + 2], fov: 50 }}
         onPointerMissed={handlePointerMissed}
+        shadows
+        gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.1, outputColorSpace: THREE.SRGBColorSpace }}
+        dpr={[1, 2]}
       >
-        <color attach="background" args={['#18181b']} />
-        <fog attach="fog" args={['#18181b', 8, 25]} />
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-        <Environment preset="apartment" background={false} />
+        <color attach="background" args={['#1a1a2e']} />
+        <fog attach="fog" args={['#1a1a2e', 12, 35]} />
+
+        {/* Key light — main directional with soft shadows */}
+        <directionalLight
+          position={[8, 12, 6]}
+          intensity={1.8}
+          castShadow
+          shadow-mapSize-width={2048}
+          shadow-mapSize-height={2048}
+          shadow-camera-far={50}
+          shadow-camera-left={-10}
+          shadow-camera-right={10}
+          shadow-camera-top={10}
+          shadow-camera-bottom={-10}
+          shadow-bias={-0.0005}
+          shadow-normalBias={0.02}
+          color="#fff5e6"
+        />
+        {/* Fill light — softer, cooler, from opposite side */}
+        <directionalLight position={[-6, 8, -4]} intensity={0.4} color="#e0e7ff" />
+        {/* Rim light — subtle back light for depth */}
+        <directionalLight position={[0, 6, -10]} intensity={0.3} color="#fde68a" />
+        {/* Ambient base — very subtle to lift shadows */}
+        <ambientLight intensity={0.15} />
+        {/* Hemisphere light for natural sky/ground color bleed */}
+        <hemisphereLight args={['#b0c4de', '#8b7355', 0.3]} />
+
+        <Environment preset="apartment" background={false} environmentIntensity={0.6} />
         
         {/* Floor from polygon */}
         {floorShape && (
           <group>
             <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
               <shapeGeometry args={[floorShape]} />
-              <meshStandardMaterial color="#27272a" side={THREE.DoubleSide} />
+              <MeshReflectorMaterial
+                blur={[300, 100]}
+                resolution={1024}
+                mixBlur={0.8}
+                mixStrength={0.4}
+                roughness={0.7}
+                depthScale={0.8}
+                minDepthThreshold={0.4}
+                maxDepthThreshold={1.2}
+                color="#2a2a2a"
+                metalness={0.05}
+                mirror={0.3}
+              />
             </mesh>
             {/* Floor edge outline */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.002, 0]}>
               <shapeGeometry args={[floorShape]} />
               <meshBasicMaterial color="#3f3f46" wireframe />
             </mesh>
           </group>
         )}
+
+        {/* Soft contact shadows under all objects */}
+        <ContactShadows
+          position={[0, 0.001, 0]}
+          opacity={0.4}
+          scale={Math.max(roomWidthM || 8, roomLengthM || 8) + 4}
+          blur={2.5}
+          far={4}
+          color="#000000"
+        />
 
         {/* Walls from polygonMm */}
         {roomWalls.map((wall, idx) => {
@@ -629,23 +681,23 @@ export const KitchenCanvas3D = ({
                   <group>
                     {/* Left Side Panel */}
                     <Box args={[0.018, h, d]} position={[-w/2 + 0.009, 0, 0]} castShadow receiveShadow>
-                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} envMapIntensity={0.5} />
                     </Box>
                     {/* Right Side Panel */}
                     <Box args={[0.018, h, d]} position={[w/2 - 0.009, 0, 0]} castShadow receiveShadow>
-                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} envMapIntensity={0.5} />
                     </Box>
                     {/* Top Panel */}
                     <Box args={[w - 0.036, 0.018, d]} position={[0, h/2 - 0.009, 0]} castShadow receiveShadow>
-                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} envMapIntensity={0.5} />
                     </Box>
                     {/* Bottom Panel */}
                     <Box args={[w - 0.036, 0.018, d]} position={[0, -h/2 + 0.009, 0]} castShadow receiveShadow>
-                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} envMapIntensity={0.5} />
                     </Box>
                     {/* Back Panel */}
                     <Box args={[w - 0.036, h - 0.036, 0.018]} position={[0, 0, -d/2 + 0.009]} castShadow receiveShadow>
-                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.2} metalness={0.05} />
+                      <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.5} metalness={0.0} envMapIntensity={0.2} />
                     </Box>
                   </group>
                   <Box args={[w, h, d]}>
@@ -791,11 +843,11 @@ export const KitchenCanvas3D = ({
                         <group position={[0, yPos, frontZ + (isOpen ? openOffset : 0)]}>
                           {/* Drawer Front Panel */}
                           <Box args={[w - 0.004, actualDrawerH - 0.004, 0.016]} castShadow>
-                            <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                            <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.28} metalness={0.01} envMapIntensity={0.5} />
                           </Box>
                           {/* Drawer Handle (profile/bar handle) */}
                           <Box args={[w * 0.35, 0.015, 0.012]} position={[0, -(actualDrawerH/2) + 0.02, 0.012]} castShadow>
-                            <meshStandardMaterial color="#71717a" metalness={0.8} roughness={0.2} />
+                            <meshStandardMaterial color="#a8a29e" metalness={0.9} roughness={0.1} envMapIntensity={1.2} />
                           </Box>
                           {/* Drawer sides (visible when open) */}
                           {isOpen && (
@@ -913,14 +965,14 @@ export const KitchenCanvas3D = ({
                     <group key="interior">
                       {/* Back wall of carcass */}
                       <Box args={[w - 0.004, h - 0.004, 0.003]} position={[0, 0, -d/2 + 0.005]}>
-                        <meshStandardMaterial color="#f5f5f4" roughness={0.6} />
+                        <meshStandardMaterial color="#f5f5f4" roughness={0.7} envMapIntensity={0.2} />
                       </Box>
                       {/* Side panels interior */}
                       <Box args={[0.003, h - 0.004, d - 0.01]} position={[-w/2 + 0.005, 0, 0]}>
-                        <meshStandardMaterial color="#e7e5e4" roughness={0.5} />
+                        <meshStandardMaterial color="#e7e5e4" roughness={0.6} envMapIntensity={0.2} />
                       </Box>
                       <Box args={[0.003, h - 0.004, d - 0.01]} position={[w/2 - 0.005, 0, 0]}>
-                        <meshStandardMaterial color="#e7e5e4" roughness={0.5} />
+                        <meshStandardMaterial color="#e7e5e4" roughness={0.6} envMapIntensity={0.2} />
                       </Box>
                     </group>
                   );
@@ -955,24 +1007,24 @@ export const KitchenCanvas3D = ({
                               {/* Door Frame - Stiles and Rails */}
                               {/* Left stile */}
                               <Box args={[frameOverlay, doorsHeight, frameDepth]} position={[-doorW/2 + frameOverlay/2, 0, doorT/2 - frameDepth/2]} castShadow>
-                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.28} metalness={0.01} envMapIntensity={0.6} />
                               </Box>
                               {/* Right stile */}
                               <Box args={[frameOverlay, doorsHeight, frameDepth]} position={[doorW/2 - frameOverlay/2, 0, doorT/2 - frameDepth/2]} castShadow>
-                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.28} metalness={0.01} envMapIntensity={0.6} />
                               </Box>
                               {/* Top rail */}
                               <Box args={[doorW - frameOverlay * 2, frameOverlay, frameDepth]} position={[0, doorsHeight/2 - frameOverlay/2, doorT/2 - frameDepth/2]} castShadow>
-                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.28} metalness={0.01} envMapIntensity={0.6} />
                               </Box>
                               {/* Bottom rail */}
                               <Box args={[doorW - frameOverlay * 2, frameOverlay, frameDepth]} position={[0, -doorsHeight/2 + frameOverlay/2, doorT/2 - frameDepth/2]} castShadow>
-                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.3} />
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.28} metalness={0.01} envMapIntensity={0.6} />
                               </Box>
                               
                               {/* Door Panel (inset) - with slight bevel effect */}
                               <Box args={[doorW - frameOverlay * 2 - panelInset * 2, doorsHeight - frameOverlay * 2 - panelInset * 2, 0.006]} position={[0, 0, doorT/2 - 0.001]} castShadow>
-                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.4} />
+                                <meshStandardMaterial color={isSelected ? '#fcd34d' : doorColor} roughness={0.35} metalness={0.01} envMapIntensity={0.5} />
                               </Box>
                               
                               {/* Door seal/gasket (visible when closed) */}
@@ -987,7 +1039,7 @@ export const KitchenCanvas3D = ({
                                 /* Profile/Gola handle - long recessed handle on opening side */
                                 <group position={[handleX, 0, doorT/2 + 0.002]}>
                                   <Box args={[0.003, doorsHeight * 0.3, 0.015]} castShadow>
-                                    <meshStandardMaterial color="#57534e" metalness={0.7} roughness={0.3} />
+                                    <meshStandardMaterial color="#57534e" metalness={0.85} roughness={0.15} envMapIntensity={1.2} />
                                   </Box>
                                 </group>
                               ) : unit.handleType === 'knob' ? (
@@ -995,17 +1047,17 @@ export const KitchenCanvas3D = ({
                                 <group position={[handleX, doorsHeight * 0.25, doorT/2 + 0.01]}>
                                   <mesh castShadow>
                                     <sphereGeometry args={[0.012, 16, 16]} />
-                                    <meshStandardMaterial color="#78716c" metalness={0.8} roughness={0.2} />
+                                    <meshStandardMaterial color="#a8a29e" metalness={0.9} roughness={0.1} envMapIntensity={1.5} />
                                   </mesh>
                                 </group>
                               ) : unit.handleType === 'cnc_groove' ? (
                                 /* CNC groove - horizontal slot at top and bottom on opening side */
                                 <>
                                   <Box args={[0.04, 0.008, 0.003]} position={[handleX, doorsHeight * 0.3, doorT/2 + 0.001]} castShadow>
-                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                    <meshStandardMaterial color="#57534e" metalness={0.7} roughness={0.25} envMapIntensity={0.8} />
                                   </Box>
                                   <Box args={[0.04, 0.008, 0.003]} position={[handleX, -doorsHeight * 0.3, doorT/2 + 0.001]} castShadow>
-                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                    <meshStandardMaterial color="#57534e" metalness={0.7} roughness={0.25} envMapIntensity={0.8} />
                                   </Box>
                                 </>
                               ) : (
@@ -1013,15 +1065,15 @@ export const KitchenCanvas3D = ({
                                 <group position={[handleX, 0, handleZ]}>
                                   {/* Handle bar */}
                                   <Box args={[0.008, doorsHeight * 0.35, 0.006]} castShadow>
-                                    <meshStandardMaterial color="#78716c" metalness={0.8} roughness={0.2} />
+                                    <meshStandardMaterial color="#a8a29e" metalness={0.9} roughness={0.1} envMapIntensity={1.5} />
                                   </Box>
                                   {/* Handle base plate (top) */}
                                   <Box args={[0.014, 0.02, 0.01]} position={[0, doorsHeight * 0.175, -0.002]} castShadow>
-                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                    <meshStandardMaterial color="#78716c" metalness={0.85} roughness={0.15} envMapIntensity={1.0} />
                                   </Box>
                                   {/* Handle base plate (bottom) */}
                                   <Box args={[0.014, 0.02, 0.01]} position={[0, -doorsHeight * 0.175, -0.002]} castShadow>
-                                    <meshStandardMaterial color="#57534e" metalness={0.6} roughness={0.4} />
+                                    <meshStandardMaterial color="#78716c" metalness={0.85} roughness={0.15} envMapIntensity={1.0} />
                                   </Box>
                                 </group>
                               )}
@@ -1138,7 +1190,7 @@ export const KitchenCanvas3D = ({
                 if (unit.type === 'base' || unit.type === 'tall' || unit.type === 'drawer_unit') {
                   details.push(
                     <Box key="plinth" args={[w - 0.02, plinthH, d - 0.05]} position={[0, -h/2 + plinthH/2, -0.02]} castShadow>
-                      <meshStandardMaterial color="#1e293b" />
+                      <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.05} />
                     </Box>
                   );
                 } else if (unit.type === 'corner_base' || unit.type === 'corner_tall') {
@@ -1147,10 +1199,10 @@ export const KitchenCanvas3D = ({
                   details.push(
                     <group key="plinth" position={[0, -h/2 + plinthH/2, 0]}>
                       <Box args={[w - 0.02, plinthH, rightD - 0.05]} position={[0, 0, -d/2 + rightD/2 - 0.025]} castShadow>
-                        <meshStandardMaterial color="#1e293b" />
+                        <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.05} />
                       </Box>
                       <Box args={[leftD - 0.05, plinthH, d - 0.02]} position={[-w/2 + leftD/2 - 0.025, 0, 0]} castShadow>
-                        <meshStandardMaterial color="#1e293b" />
+                        <meshStandardMaterial color="#1e293b" roughness={0.6} metalness={0.05} />
                       </Box>
                     </group>
                   );
@@ -1301,7 +1353,7 @@ export const KitchenCanvas3D = ({
           zoomSpeed={0.9}
         />
         <SceneExporter ref={exporterRef ?? null} />
-        <Grid infiniteGrid fadeDistance={20} sectionColor="#10b981" cellColor="#3f3f46" />
+        <Grid infiniteGrid fadeDistance={20} fadeStrength={1.5} sectionColor="#2563eb" cellColor="#27272a" sectionSize={1} cellSize={0.25} position={[0, -0.001, 0]} />
       </Canvas>
 
       {/* Context Menu HTML Overlay */}
