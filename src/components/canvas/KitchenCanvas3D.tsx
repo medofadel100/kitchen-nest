@@ -554,43 +554,47 @@ export const KitchenCanvas3D = ({
                         const coverD = (obstacle.depthMm + clearanceMm) * SCALE_3D;
                         const coverW = (obstacle.widthMm + 2 * clearanceMm) * SCALE_3D;
                         const coverH = h;
-                        const obsLocalX = (obstacle.xMm - unit.position.xMm) * SCALE_3D;
-                        const obsLocalY = (obstacle.yMm - unit.position.yMm) * SCALE_3D;
-                        const obsLocalRight = (obstacle.xMm + obstacle.widthMm - unit.position.xMm) * SCALE_3D;
-                        const obsLocalFront = (obstacle.yMm + obstacle.depthMm - unit.position.yMm) * SCALE_3D;
+                        // obsLocalX/Y بالنسبة لحافة الوحدة الشمال-الخلف (0..w)
+                        // لكن الـ group ممركز عند (0,0,0) فنحتاج نطرح w/2 و d/2
+                        const obsLocalX = (obstacle.xMm - unit.position.xMm) * SCALE_3D - w / 2;
+                        const obsLocalY = (obstacle.yMm - unit.position.yMm) * SCALE_3D - d / 2;
+                        const obsLocalRight = (obstacle.xMm + obstacle.widthMm - unit.position.xMm) * SCALE_3D - w / 2;
+                        const obsLocalFront = (obstacle.yMm + obstacle.depthMm - unit.position.yMm) * SCALE_3D - d / 2;
+                        const obsCenterX = (obsLocalX + obsLocalRight) / 2;
+                        const obsCenterZ = (obsLocalY + obsLocalFront) / 2;
                         const covers: React.ReactNode[] = [];
 
-                        // 1. الوجه الأيسر للعمود — لو جوه الوحدة
+                        // 1. الوجه الأيسر للعمود — لو جوه الوحدة (x = obsLocalX)
                         if (obstacle.xMm > unit.position.xMm + clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_left" args={[0.018, coverH, coverD]} position={[obsLocalX, 0, obsLocalY + coverD / 2]} castShadow receiveShadow>
+                            <Box key="col_cover_left" args={[0.018, coverH, coverD]} position={[obsLocalX, 0, obsCenterZ]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );
                         }
 
-                        // 2. الوجه الأيمن للعمود — لو جوه الوحدة
-                        if (obstacle.xMm + obstacle.widthMm < unit.position.xMm + widthMm * SCALE_3D / SCALE_3D - clearanceMm) {
+                        // 2. الوجه الأيمن للعمود — لو جوه الوحدة (x = obsLocalRight)
+                        if (obstacle.xMm + obstacle.widthMm < unit.position.xMm + widthMm - clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_right" args={[0.018, coverH, coverD]} position={[obsLocalRight, 0, obsLocalY + coverD / 2]} castShadow receiveShadow>
+                            <Box key="col_cover_right" args={[0.018, coverH, coverD]} position={[obsLocalRight, 0, obsCenterZ]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );
                         }
 
-                        // 3. الوجه الأمامي للعمود — لو جوه الوحدة
+                        // 3. الوجه الأمامي للعمود — لو جوه الوحدة (z = obsLocalFront)
                         if (obstacle.yMm + obstacle.depthMm < unit.position.yMm + depthMm - clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_front" args={[coverW, coverH, 0.018]} position={[obsLocalX + (obstacle.widthMm * SCALE_3D) / 2, 0, obsLocalFront]} castShadow receiveShadow>
+                            <Box key="col_cover_front" args={[coverW, coverH, 0.018]} position={[obsCenterX, 0, obsLocalFront]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );
                         }
 
-                        // 4. الوجه الخلفي للعمود — لو جوه الوحدة
+                        // 4. الوجه الخلفي للعمود — لو جوه الوحدة (z = obsLocalY)
                         if (obstacle.yMm > unit.position.yMm + clearanceMm) {
                           covers.push(
-                            <Box key="col_cover_back" args={[coverW, coverH, 0.018]} position={[obsLocalX + (obstacle.widthMm * SCALE_3D) / 2, 0, obsLocalY]} castShadow receiveShadow>
+                            <Box key="col_cover_back" args={[coverW, coverH, 0.018]} position={[obsCenterX, 0, obsLocalY]} castShadow receiveShadow>
                               <meshStandardMaterial color={color} roughness={0.2} metalness={0.05} />
                             </Box>
                           );

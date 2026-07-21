@@ -50,6 +50,7 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
   const [isExporting, setIsExporting] = useState(false);
   const [showAR, setShowAR] = useState(false);
   const [modelViewerReady, setModelViewerReady] = useState(false);
+  const [modelViewerError, setModelViewerError] = useState(false);
   const [approvalStatus, setApprovalStatus] = useState<"pending" | "approved" | "revision_requested" | null>(null);
   const [approvalNote, setApprovalNote] = useState('');
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
@@ -86,8 +87,10 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
 
   // تحميل model-viewer script بشكل موثوق
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
     // التحقق لو الـ script موجود بالفعل
-    if (typeof window !== 'undefined' && window.customElements?.get('model-viewer')) {
+    if (window.customElements?.get('model-viewer')) {
       setModelViewerReady(true);
       return;
     }
@@ -96,15 +99,30 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
     script.type = 'module';
     script.src = 'https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js';
     script.onload = () => {
-      // الانتظار شوية عشان الـ custom element يتسجل
-      setTimeout(() => {
-        setModelViewerReady(true);
-      }, 500);
+      // الانتظار أكتر عشان الـ custom element يتسجل كويس على الموبايل
+      const checkReady = () => {
+        if (window.customElements?.get('model-viewer')) {
+          setModelViewerReady(true);
+        } else {
+          setTimeout(checkReady, 200);
+        }
+      };
+      setTimeout(checkReady, 300);
     };
     script.onerror = () => {
       console.error('Failed to load model-viewer script');
+      setModelViewerError(true);
     };
     document.head.appendChild(script);
+
+    // Timeout: لو اتأخر أكتر من 10 ثواني
+    const timeout = setTimeout(() => {
+      if (!modelViewerReady && !modelViewerError) {
+        setModelViewerError(true);
+      }
+    }, 10000);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   // تصدير المشهد كـ GLB وتحضيره للـ AR
@@ -304,17 +322,35 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
               </div>
 
               {/* model-viewer */}
-              {modelViewerReady ? (
+              {modelViewerError ? (
+                <div className="flex flex-col items-center justify-center h-[420px] bg-zinc-800 p-6">
+                  <p className="text-red-400 font-bold text-center mb-4">فشل تحميل مكون AR</p>
+                  <p className="text-zinc-500 text-sm text-center mb-4">جرب تحديث الصفحة أو تأكد من اتصال الإنترنت</p>
+                  <a
+                    href={glbUrl || '#'}
+                    download={`kitchen-${project?.projectName ?? 'design'}.glb`}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-violet-500 text-white font-bold text-sm hover:bg-violet-400 transition-colors"
+                  >
+                    <Download size={16} />
+                    تحميل ملف 3D وفتحه في تطبيق آخر
+                  </a>
+                </div>
+              ) : modelViewerReady ? (
                 <model-viewer
                   src={glbUrl}
                   ar
-                  ar-modes="scene-viewer webxr"
+                  ar-modes="webxr scene-viewer quick-look"
                   camera-controls
                   auto-rotate
                   rotation-per-second="15deg"
                   shadow-intensity="1"
+                  camera-orbit="45deg 55deg 1.5m"
+                  min-camera-orbit="auto auto 0.5m"
+                  max-camera-orbit="Infinity 180deg 5m"
                   style={{ width: '100%', height: '420px', background: '#18181b' }}
                   alt={`تصميم مطبخ — ${project.projectName}`}
+                  ar-scale="fixed"
+                  touch-action="pan-y"
                 >
                   <button
                     slot="ar-button"
@@ -332,23 +368,28 @@ export default function SharedProjectPage({ params }: { params: { id: string } }
                       fontWeight: '700',
                       cursor: 'pointer',
                       boxShadow: '0 0 20px rgba(139,92,246,0.4)',
+                      zIndex: 10,
                     }}
                   >
-                    📱 شوف المطبخ في مكانك الحقيقي (AR)
+                    شوف المطبخ في مكانك الحقيقي (AR)
                   </button>
                 </model-viewer>
               ) : (
                 <div className="flex flex-col items-center justify-center h-[420px] bg-zinc-800">
                   <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-violet-500 mb-4" />
                   <p className="text-zinc-400 font-bold">جاري تحميل مكون AR...</p>
+                  <p className="text-zinc-500 text-xs mt-2">لو لم يظهر تلقائياً، جرّب تحديث الصفحة</p>
                 </div>
               )}
 
               <div className="p-4 bg-zinc-950/50 text-center">
                 <p className="text-zinc-400 text-sm">
-                  📱 على <strong className="text-white">Android</strong>: اضغط زرار AR أدناه للمعاينة في غرفتك
+                  على <strong className="text-white">Android</strong>: اضغط زرار "شوف المطبخ في مكانك" للمعاينة
                   &nbsp;·&nbsp;
-                  على <strong className="text-white">iPhone</strong>: شغّل الـ 3D وتحرك حواليه
+                  على <strong className="text-white">iPhone</strong>: يفتح تلقائياً في Quick Look
+                </p>
+                <p className="text-zinc-500 text-xs mt-2">
+                  تأكد أن الكاميرا مفعلة وان الهاتف يدعم AR (Android 8+ / iPhone 6S+)
                 </p>
               </div>
             </div>
