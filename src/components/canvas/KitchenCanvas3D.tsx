@@ -154,12 +154,13 @@ export const KitchenCanvas3D = ({
   }, [room]);
 
   // Floor shape from polygon
+  // Negate Y so that after -90° X rotation the floor lies in +Z (inside the room)
   const floorShape = useMemo(() => {
     if (!room?.polygonMm?.length) return null;
     const shape = new THREE.Shape();
     room.polygonMm.forEach((p, i) => {
       const x = p.xMm * SCALE_3D;
-      const y = p.yMm * SCALE_3D;
+      const y = -p.yMm * SCALE_3D;
       if (i === 0) shape.moveTo(x, y);
       else shape.lineTo(x, y);
     });
