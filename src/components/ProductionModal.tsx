@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, Package, Scissors } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Package, Scissors, MessageCircle } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { calculateProjectCost } from '@/lib/pricing';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -23,6 +23,7 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({ isOpen, onClos
   const [loading, setLoading] = useState(false);
   const [deficit, setDeficit] = useState<{name: string, required: number, inStock: number, unit: string}[] | null>(null);
   const [success, setSuccess] = useState(false);
+  const [projectName, setProjectName] = useState('');
 
   if (!isOpen) return null;
 
@@ -113,6 +114,8 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({ isOpen, onClos
       await deductStockForProject(appUser.workshopId, projectId, deductions);
       await updateProject(projectId, { status: 'in_production' });
       
+      const projName = useProjectStore.getState().projectDetails?.projectName || 'مشروع المطبخ';
+      setProjectName(projName);
       setSuccess(true);
     } catch (error) {
       console.error(error);
@@ -180,10 +183,22 @@ export const ProductionModal: React.FC<ProductionModalProps> = ({ isOpen, onClos
           <div className="text-center py-6">
             <CheckCircle size={64} className="mx-auto text-emerald-500 mb-4" />
             <h2 className="text-2xl font-bold text-white mb-2">تم الخصم بنجاح!</h2>
-            <p className="text-zinc-400 mb-8">المشروع الآن في مرحلة التصنيع (Production).</p>
+            <p className="text-zinc-400 mb-6">المشروع الآن في مرحلة التصنيع (Production).</p>
+            
+            <button
+              onClick={() => {
+                const msg = encodeURIComponent(`مرحباً، تم بدء تصنيع مشروع "${projectName}" بنجاح. سيتم التواصل معك قريباً لموعد التسليم.`);
+                window.open(`https://wa.me/?text=${msg}`, '_blank');
+              }}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl font-bold transition-colors flex items-center justify-center gap-2 mb-3"
+            >
+              <MessageCircle size={18} />
+              إرسال إشعار واتساب للعميل
+            </button>
+
             <button 
               onClick={() => { onClose(); window.location.reload(); }}
-              className="bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-8 py-3 rounded-xl font-bold transition-colors"
+              className="bg-zinc-800 hover:bg-zinc-700 text-white px-8 py-3 rounded-xl font-bold transition-colors"
             >
               إغلاق وتحديث
             </button>

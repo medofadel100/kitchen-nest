@@ -18,6 +18,8 @@ import { findSmartUnitPlacement } from '@/utils/geometry';
 import { RoomWallEditor } from './RoomWallEditor';
 import { QuickRectangleModal } from './QuickRectangleModal';
 import { RoomPropertiesPanel } from './RoomPropertiesPanel';
+import { UnitPropertiesPanel } from './UnitPropertiesPanel';
+import { ProjectStages } from './ProjectStages';
 
 interface ToolItem {
   type: string;
@@ -58,17 +60,29 @@ export const ToolsSidebar = () => {
     { type: 'drawer_unit', label: 'أدراج', icon: Layers, color: 'text-amber-400', bgColor: 'from-amber-900/50 to-amber-950/50', category: 'unit' },
     { type: 'corner_base', label: 'ركن أرضي', icon: CornerDownRight, color: 'text-pink-400', bgColor: 'from-pink-900/50 to-pink-950/50', category: 'unit' },
     { type: 'corner_wall', label: 'ركن معلق', icon: CornerDownRight, color: 'text-teal-400', bgColor: 'from-teal-900/50 to-teal-950/50', category: 'unit' },
+    { type: 'corner_tall', label: 'ركن طولية', icon: CornerDownRight, color: 'text-fuchsia-400', bgColor: 'from-fuchsia-900/50 to-fuchsia-950/50', category: 'unit' },
     { type: 'loft', label: 'قلاب', icon: ArrowUpFromLine, color: 'text-indigo-400', bgColor: 'from-indigo-900/50 to-indigo-950/50', category: 'unit' },
+    { type: 'corner_loft', label: 'ركن قلاب', icon: CornerDownRight, color: 'text-violet-400', bgColor: 'from-violet-900/50 to-violet-950/50', category: 'unit' },
+    { type: 'pantry_pullout', label: 'مخزن سحاب (تلاجة)', icon: Package, color: 'text-orange-400', bgColor: 'from-orange-900/50 to-orange-950/50', category: 'unit' },
+    { type: 'base_appliance_housing', label: 'هوسنج جهاز سفلي', icon: Package, color: 'text-cyan-400', bgColor: 'from-cyan-900/50 to-cyan-950/50', category: 'unit' },
+    { type: 'tall_appliance_housing', label: 'هوسنج جهاز طولي', icon: ArrowUpFromLine, color: 'text-cyan-300', bgColor: 'from-cyan-800/50 to-cyan-950/50', category: 'unit' },
+    { type: 'range_hood_hermy', label: 'شفاط هرمي', icon: ArrowUpFromLine, color: 'text-gray-400', bgColor: 'from-gray-900/50 to-gray-950/50', category: 'unit' },
+    { type: 'range_hood_island', label: 'شفاط جزيرة', icon: Box, color: 'text-gray-300', bgColor: 'from-gray-800/50 to-gray-950/50', category: 'unit' },
+    { type: 'range_hood_curved', label: 'شفاط كيرف', icon: Box, color: 'text-slate-400', bgColor: 'from-slate-900/50 to-slate-950/50', category: 'unit' },
+    { type: 'range_hood_wall', label: 'شفاط معلق', icon: Layers, color: 'text-slate-300', bgColor: 'from-slate-800/50 to-slate-950/50', category: 'unit' },
+    { type: 'open_shelf', label: 'رف مفتوح', icon: LayoutGrid, color: 'text-yellow-400', bgColor: 'from-yellow-900/50 to-yellow-950/50', category: 'unit' },
   ];
 
   const applianceTools: ToolItem[] = [
     { type: 'fridge', label: 'ثلاجة', icon: FridgeIcon, color: 'text-cyan-400', bgColor: 'from-cyan-900/50 to-cyan-950/50', category: 'appliance' },
     { type: 'freezer', label: 'فريزر', icon: Snowflake, color: 'text-blue-400', bgColor: 'from-blue-900/50 to-blue-950/50', category: 'appliance' },
     { type: 'oven', label: 'فرن', icon: Flame, color: 'text-orange-400', bgColor: 'from-orange-900/50 to-orange-950/50', category: 'appliance' },
+    { type: 'electric_oven', label: 'فرن كهربائي', icon: Flame, color: 'text-amber-400', bgColor: 'from-amber-900/50 to-amber-950/50', category: 'appliance' },
     { type: 'stove', label: 'بوتاجاز', icon: ChefHat, color: 'text-red-400', bgColor: 'from-red-900/50 to-red-950/50', category: 'appliance' },
+    { type: 'microwave', label: 'مكرويف', icon: Package, color: 'text-yellow-300', bgColor: 'from-yellow-900/50 to-yellow-950/50', category: 'appliance' },
     { type: 'dishwasher', label: 'غسالة أطباق', icon: Utensils, color: 'text-teal-400', bgColor: 'from-teal-900/50 to-teal-950/50', category: 'appliance' },
     { type: 'sink', label: 'حوض', icon: Package, color: 'text-emerald-400', bgColor: 'from-emerald-900/50 to-emerald-950/50', category: 'appliance' },
-    { type: 'washing_machine', label: 'غسالة', icon: WashMachine, color: 'text-indigo-400', bgColor: 'from-indigo-900/50 to-indigo-950/50', category: 'appliance' },
+    { type: 'washing_machine', label: 'غسالة ملابس', icon: WashMachine, color: 'text-indigo-400', bgColor: 'from-indigo-900/50 to-indigo-950/50', category: 'appliance' },
     { type: 'dryer', label: 'مجفف', icon: Wind, color: 'text-purple-400', bgColor: 'from-purple-900/50 to-purple-950/50', category: 'appliance' },
   ];
 
@@ -116,6 +130,21 @@ export const ToolsSidebar = () => {
     }
 
     addUnit(type as UnitType, defaultX, defaultY);
+
+    // For appliance housing units, trigger the wizard
+    if (type === 'base_appliance_housing' || type === 'tall_appliance_housing') {
+      // Use setTimeout to wait for the unit to be added to state
+      setTimeout(() => {
+        const state = useProjectStore.getState();
+        const lastUnit = state.units[state.units.length - 1];
+        if (lastUnit) {
+          state.setPendingHousingWizard({
+            unitId: lastUnit.id,
+            housingType: type as 'base_appliance_housing' | 'tall_appliance_housing',
+          });
+        }
+      }, 50);
+    }
   };
 
   const handleApplianceClick = (tool: ToolItem) => {
@@ -400,6 +429,11 @@ export const ToolsSidebar = () => {
         <div className="pt-2 border-t border-zinc-800/30">
           <RoomWallEditor />
         </div>
+
+        {/* Project Stages */}
+        <div className="pt-2 border-t border-zinc-800/30">
+          <ProjectStages />
+        </div>
       </div>
 
       {/* ===== PROPERTIES PANEL ===== */}
@@ -412,52 +446,9 @@ export const ToolsSidebar = () => {
             exit={{ opacity: 0, y: 20, height: 0 }}
             className="mt-4 bg-gradient-to-br from-zinc-900/90 to-zinc-950/90 border border-emerald-500/20 rounded-2xl shadow-[0_0_20px_rgba(16,185,129,0.03)] overflow-hidden flex-shrink-0"
           >
-            <div className="p-3 max-h-64 overflow-y-auto custom-scrollbar">
+            <div className="p-3 max-h-[28rem] overflow-y-auto custom-scrollbar">
               {selectedElement.type === 'unit' && selectedUnit && (
-                <>
-                  <h3 className="font-bold text-white mb-3 text-xs flex items-center gap-2">
-                    <Box size={12} />
-                    خصائص الوحدة
-                    <span className="bg-emerald-500/20 text-emerald-400 text-[8px] px-1.5 py-0.5 rounded font-mono">{selectedUnit.type}</span>
-                  </h3>
-                  
-                  <div className="space-y-1.5 mb-3">
-                    <PropertyRow label="العرض" value={convertMmToDisplayUnit(selectedUnit.dimensions.widthMm, displayUnit)} unit={displayUnit}
-                      onChange={(v) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, convertDisplayUnitToMm(v, displayUnit), selectedUnit.dimensions.depthMm, selectedUnit.dimensions.heightMm)} />
-                    <PropertyRow label="العمق" value={convertMmToDisplayUnit(selectedUnit.dimensions.depthMm, displayUnit)} unit={displayUnit}
-                      onChange={(v) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, convertDisplayUnitToMm(v, displayUnit), selectedUnit.dimensions.heightMm)} />
-                    <PropertyRow label="الارتفاع" value={convertMmToDisplayUnit(selectedUnit.dimensions.heightMm, displayUnit)} unit={displayUnit}
-                      onChange={(v) => useProjectStore.getState().updateUnitDimensions(selectedUnit.id, selectedUnit.dimensions.widthMm, selectedUnit.dimensions.depthMm, convertDisplayUnitToMm(v, displayUnit))} />
-                    <PropertyRow label="من الأرض" value={convertMmToDisplayUnit(selectedUnit.position.zMm ?? 0, displayUnit)} unit={displayUnit}
-                      onChange={(v) => useProjectStore.getState().updateUnitPosition(selectedUnit.id, selectedUnit.position.xMm, selectedUnit.position.yMm, convertDisplayUnitToMm(v, displayUnit))} />
-                    
-                    {/* Color */}
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-1.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-[10px] font-medium">اللون</span>
-                      <input type="color" value={selectedUnit.colorHex || '#D4B896'}
-                        onChange={(e) => useProjectStore.getState().updateUnitDetails(selectedUnit.id, { colorHex: e.target.value })}
-                        className="w-8 h-6 rounded cursor-pointer border border-zinc-700 bg-transparent" />
-                    </div>
-                    
-                    <div className="flex justify-between items-center bg-zinc-950/50 p-1.5 rounded-lg border border-zinc-800">
-                      <span className="text-zinc-500 text-[10px] font-medium">الزاوية</span>
-                      <select value={selectedUnit.position.rotationDeg}
-                        onChange={(e) => useProjectStore.getState().updateUnitPosition(selectedUnit.id, selectedUnit.position.xMm, selectedUnit.position.yMm, selectedUnit.position.zMm, Number(e.target.value) as any)}
-                        className="w-14 bg-transparent text-white font-mono text-[10px] text-left outline-none">
-                        <option value={0} className="text-black">0°</option>
-                        <option value={90} className="text-black">90°</option>
-                        <option value={180} className="text-black">180°</option>
-                        <option value={270} className="text-black">270°</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  <button onClick={() => deleteUnit(selectedUnit.id)} 
-                    className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg hover:bg-red-500 hover:text-white transition-all font-bold text-[10px]">
-                    <Trash2 size={12} />
-                    حذف الوحدة
-                  </button>
-                </>
+                <UnitPropertiesPanel unit={selectedUnit} />
               )}
 
               {selectedElement.type === 'fixture' && (
@@ -507,18 +498,3 @@ export const ToolsSidebar = () => {
     </div>
   );
 };
-
-// Helper component for property rows
-const PropertyRow = ({ label, value, unit, onChange }: { 
-  label: string; value: number; unit: string; onChange: (v: number) => void 
-}) => (
-  <div className="flex justify-between items-center bg-zinc-950/50 p-1.5 rounded-lg border border-zinc-800">
-    <span className="text-zinc-500 text-[10px] font-medium">{label}</span>
-    <div className="flex items-center gap-1">
-      <input type="number" value={Number(value.toFixed(2))}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-14 bg-transparent text-white font-mono text-[10px] text-left outline-none" />
-      <span className="text-zinc-600 text-[8px]">{unit}</span>
-    </div>
-  </div>
-);

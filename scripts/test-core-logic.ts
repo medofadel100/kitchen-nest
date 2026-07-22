@@ -76,6 +76,7 @@ const project: KitchenProject = {
   units,
   appliances: [],
   profitMarginPercent: 25,
+  includeVat: true,
 };
 
 const materialsById = Object.fromEntries(DEFAULT_MATERIALS.map((m) => [m.id, m]));

@@ -53,9 +53,16 @@ export type UnitType =
   | "corner_tall" // وحدة ركن طولية
   | "island"      // جزيرة
   | "drawer_unit" // وحدة أدراج
-  | "loft"        // وحدة قلاب/مستوى ثاني علوي
-  | "pantry_pullout" // وحدة مخزن طويلة بالسحاب
-  | "open_shelf";    // وحدة مفتوحة
+  | "loft"        // وحدة قلاب (مربع عادي)
+  | "corner_loft" // وحدة ركن قلاب (بين زاويتين)
+  | "pantry_pullout" // وحدة مخزن طويلة بالسحاب (تلاجة/ديب فريزر)
+  | "base_appliance_housing" // وحدة سفلية للأجهزة الكهربائية (غسالة/مسحاة)
+  | "tall_appliance_housing" // وحدة طولية للأجهزة الكهربائية (تلاجة/ديب فريزر)
+  | "range_hood_hermy"   // شفاط هرمي (بالمدخنة)
+  | "range_hood_island"  // شفاط جزيرة
+  | "range_hood_curved"  // شفاط كيرف
+  | "range_hood_wall"    // شفاط معلق
+  | "open_shelf";        // وحدة مفتوحة
 
 export interface UnitDimensions {
   widthMm: number;
@@ -79,7 +86,14 @@ export const DEFAULT_UNIT_DIMENSIONS: Record<UnitType, UnitDimensions> = {
   island: { widthMm: 1200, depthMm: 900, heightMm: 850 },
   drawer_unit: { widthMm: 600, depthMm: 600, heightMm: 850 },
   loft: { widthMm: 600, depthMm: 320, heightMm: 400 },
+  corner_loft: { widthMm: 600, depthMm: 600, heightMm: 400 },
   pantry_pullout: { widthMm: 600, depthMm: 600, heightMm: 2100 },
+  base_appliance_housing: { widthMm: 600, depthMm: 600, heightMm: 850 },
+  tall_appliance_housing: { widthMm: 600, depthMm: 600, heightMm: 2100 },
+  range_hood_hermy: { widthMm: 600, depthMm: 600, heightMm: 800 },
+  range_hood_island: { widthMm: 900, depthMm: 600, heightMm: 400 },
+  range_hood_curved: { widthMm: 600, depthMm: 350, heightMm: 300 },
+  range_hood_wall: { widthMm: 600, depthMm: 350, heightMm: 300 },
   open_shelf: { widthMm: 600, depthMm: 320, heightMm: 700 },
 };
 
@@ -137,6 +151,10 @@ export interface ApplianceHousingConfig {
   };
   removeDoorAtApplianceZone: boolean;
   hasBaseUnderneath: boolean;
+  // ماذا نفعل بالمساحة فوق الجهاز؟
+  aboveAppliance: "door" | "drawer" | "shelf" | "empty";
+  // عدد الأرفف لو اختار shelf
+  shelfCountAbove?: number;
 }
 
 export interface KitchenUnit {
@@ -176,6 +194,12 @@ export interface KitchenUnit {
   // 🏗️ التكيف مع العوائق الإنشائية والأجهزة
   obstacleFit?: ObstacleFitConfig;
   applianceHousingConfig?: ApplianceHousingConfig;
+  rangeHoodConfig?: {
+    chimneyWidthMm?: number;    // عرض المدخنة
+    chimneyDepthMm?: number;    // عمق المدخنة
+    hasChimney: boolean;        // هل فيه مدخنة (للهرمي)
+    filterType?: "metal" | "carbon"; // نوع الفلتر
+  };
 }
 
 // ---------- عناصر ثابتة في الفراغ (Room Fixtures & Structure) ----------
@@ -328,7 +352,33 @@ export interface Payment {
   date: string; // ISO date string or timestamp
   method: PaymentMethod;
   isPaid: boolean;
+  stage: ProjectStage; // اي مرحلة الدفعة دي مرتبطة بيها
+  note?: string;
   receiptUrl?: string; // رابط إيصال الدفع لو موجود
+}
+
+export type ProjectStage =
+  | "design"          // تصميم
+  | "approval"        // موافقة العميل
+  | "cutting"         // تقطيع
+  | "assembly"        // تجميع
+  | "installation"    // تركيب
+  | "delivery";       // تسليم
+
+export const PROJECT_STAGES: { key: ProjectStage; labelAr: string; labelEn: string }[] = [
+  { key: "design", labelAr: "تصميم", labelEn: "Design" },
+  { key: "approval", labelAr: "موافقة", labelEn: "Approval" },
+  { key: "cutting", labelAr: "تقطيع", labelEn: "Cutting" },
+  { key: "assembly", labelAr: "تجميع", labelEn: "Assembly" },
+  { key: "installation", labelAr: "تركيب", labelEn: "Installation" },
+  { key: "delivery", labelAr: "تسليم", labelEn: "Delivery" },
+];
+
+export interface ProjectStageLog {
+  stage: ProjectStage;
+  startedAt?: string;   // ISO date
+  completedAt?: string; // ISO date
+  note?: string;
 }
 
 export interface Countertop {
@@ -400,6 +450,7 @@ export interface KitchenProject {
   units: KitchenUnit[];
   appliances: { applianceId: string; position: { xMm: number; yMm: number }; customDimensions?: UnitDimensions }[];
   profitMarginPercent: number; // هامش الربح المستخدم في التسعير
+  includeVat: boolean; // هل يشمل السعر VAT ولا لأ
 
   selectedCountertopId?: string;
   selectedSinkId?: string;
@@ -424,6 +475,31 @@ export interface KitchenProject {
   approvalStatus?: "pending" | "approved" | "revision_requested";
   approvalNote?: string; // ملاحظات العميل عند طلب التعديل
   approvalDate?: string; // تاريخ الموافقة/طلب التعديل
+
+  // العروض المتعددة (Multiple Quotes)
+  quotes?: ProjectQuote[];
+  activeQuoteId?: string;
+
+  // سير عمل المشروع (Project Stages)
+  stagesLog?: ProjectStageLog[];
+  currentStage?: ProjectStage;
+}
+
+// ---------- العروض المتعددة (Multiple Quotes) ----------
+
+export interface ProjectQuote {
+  id: string;
+  quoteNumber: string;
+  label: string;
+  units: KitchenUnit[];
+  room?: Room;
+  grandTotal: number;
+  grandTotalWithVat: number;
+  status: "draft" | "sent" | "viewed" | "accepted" | "rejected";
+  createdAt: string;
+  sentAt?: string;
+  acceptedAt?: string;
+  note?: string;
 }
 
 // ---------- التسعير (Pricing) ----------

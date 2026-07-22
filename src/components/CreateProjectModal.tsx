@@ -47,6 +47,7 @@ export const CreateProjectModal = ({ isOpen, onClose }: CreateProjectModalProps)
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         profitMarginPercent: 30, // Default, can be updated later
+        includeVat: true,
         units: [],
         settings: projectSettings,
         room: {

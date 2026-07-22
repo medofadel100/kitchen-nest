@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FolderKanban, Settings, Box, Users, Package, CreditCard, LogOut, User, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Settings, Box, Users, Package, CreditCard, LogOut, User, BarChart3, GitCompareArrows, Bookmark } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -16,6 +16,8 @@ export const AppSidebar = () => {
   const links = [
     { href: '/', label: 'الرئيسية', icon: LayoutDashboard },
     { href: '/projects', label: 'المشاريع', icon: FolderKanban },
+    { href: '/quotes', label: 'العروض', icon: GitCompareArrows },
+    { href: '/templates', label: 'القوالب', icon: Bookmark },
     { href: '/inventory', label: 'المخزن', icon: Package },
     { href: '/employees', label: 'شؤون الموظفين', icon: Users },
     { href: '/reports', label: 'التقارير', icon: BarChart3 },

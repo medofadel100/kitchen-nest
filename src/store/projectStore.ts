@@ -107,6 +107,10 @@ type ProjectState = {
   addRoomPolygonPoint: (point: { xMm: number; yMm: number }) => void;
   toggleOrthoMode: () => void;
 
+  // Appliance Housing Wizard trigger
+  pendingHousingWizard: { unitId: string; housingType: 'base_appliance_housing' | 'tall_appliance_housing' } | null;
+  setPendingHousingWizard: (val: { unitId: string; housingType: 'base_appliance_housing' | 'tall_appliance_housing' } | null) => void;
+
   // Unit Actions
   addUnit: (type: UnitType, xMm: number, yMm: number) => void;
   updateUnitPosition: (id: string, xMm: number, yMm: number, zMm?: number, rotationDeg?: number) => void;
@@ -373,7 +377,12 @@ export const useProjectStore = create<ProjectState>()(
         setProjectDetails: (details) => set({ projectDetails: details }),
         loadProjectData: (project) =>
           set((state) => ({
-            projectDetails: project as Partial<KitchenProject> | null,
+            projectDetails: {
+              ...project,
+              includeVat: project.includeVat ?? false,
+              currentStage: project.currentStage ?? 'design',
+              stagesLog: project.stagesLog ?? [],
+            } as Partial<KitchenProject> | null,
             units: project.units || state.units,
             room: project.room || state.room,
             projectSettings: { ...state.projectSettings, ...(project.settings || {}) },
@@ -457,6 +466,8 @@ export const useProjectStore = create<ProjectState>()(
         isOrthoMode: true,
         visibleWalls: { back: true, left: true, front: true, right: true },
         roomPolygonPoints: [],
+        pendingHousingWizard: null,
+        setPendingHousingWizard: (val) => set({ pendingHousingWizard: val }),
         setVisibleWalls: (walls) =>
           set((state) => ({
             visibleWalls: { ...state.visibleWalls, ...walls },
@@ -507,6 +518,16 @@ export const useProjectStore = create<ProjectState>()(
               depthMm = settings.defaultLoftDepthMm;
             } else if (type === 'tall') {
               depthMm = settings.defaultBaseDepthMm;
+            } else if (type === 'corner_loft') {
+              zMm = settings.defaultLoftElevationMm;
+              heightMm = settings.defaultLoftHeightMm;
+            } else if (type === 'base_appliance_housing') {
+              heightMm = settings.defaultBaseHeightMm;
+              depthMm = settings.defaultBaseDepthMm;
+            } else if (type === 'tall_appliance_housing') {
+              depthMm = settings.defaultBaseDepthMm;
+            } else if (type.startsWith('range_hood')) {
+              zMm = 1500; // default 1.5m from floor
             }
 
             let defaultColorHex = settings.defaultBaseColor || '#D4B896';
@@ -599,14 +620,13 @@ export const useProjectStore = create<ProjectState>()(
             return {
               units: state.units.map((unit) => {
                 if (unit.id !== id) return unit;
-                const snappedWidth = snapToStandardWidth(widthMm);
                 return {
                   ...unit,
                   dimensions: {
                     ...unit.dimensions,
-                    widthMm: snappedWidth,
-                    depthMm,
-                    heightMm,
+                    widthMm: Math.round(widthMm),
+                    depthMm: Math.round(depthMm),
+                    heightMm: Math.round(heightMm),
                     leftLegCarcassDepthMm: leftLegCarcassDepthMm ?? unit.dimensions.leftLegCarcassDepthMm,
                     rightLegCarcassDepthMm: rightLegCarcassDepthMm ?? unit.dimensions.rightLegCarcassDepthMm,
                   },

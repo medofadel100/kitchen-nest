@@ -111,7 +111,7 @@ export const DraggableUnit: React.FC<DraggableUnitProps> = ({ unit, onContextMen
     // يتم استثناء الوحدات التي:
     // 1- تحتوي على applianceHousingConfig (أي وحدة إحاطة جهاز مثل إحاطة تلاجة/فرن)
     // 2- أو الوحدات التي لها label جهاز (للتوافق مع الأجهزة المضافة يدوياً)
-    const applianceLabels = ['ثلاجة', 'فريزر', 'فرن', 'بوتاجاز', 'غسالة أطباق', 'غسالة', 'مجفف', 'حوض'];
+    const applianceLabels = ['ثلاجة', 'فريزر', 'فرن', 'غسالة أطباق', 'غسالة', 'مجفف', 'حوض'];
     const otherUnits = units.filter(u => u.id !== unit.id && !applianceLabels.some(l => u.label?.includes(l)) && !u.applianceHousingConfig);
     const collision = checkUnitCollision(finalUnit, otherUnits, newXMm, newYMm);
     if (collision && room) {

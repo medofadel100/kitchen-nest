@@ -40,7 +40,7 @@ export const KitchenCanvas = () => {
   
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, id: string, type: 'unit' | 'fixture' | 'obstacle' | 'wall' | 'vertex' } | null>(null);
   const [obstacleDialog, setObstacleDialog] = useState<{ unitId: string; obstacle: StructuralObstacle } | null>(null);
-  const [applianceWizard, setApplianceWizard] = useState<{ unitId: string } | null>(null);
+  const [applianceWizard, setApplianceWizard] = useState<{ unitId: string; housingType: 'base_appliance_housing' | 'tall_appliance_housing' } | null>(null);
   const [selectedWallIndex, setSelectedWallIndex] = useState<number | null>(null);
   const [selectedVertexIndex, setSelectedVertexIndex] = useState<number | null>(null);
 
@@ -257,20 +257,46 @@ export const KitchenCanvas = () => {
 
   // معالجة تأكيد إعدادات إحاطة الجهاز
   const handleApplianceHousingConfirm = useCallback((config: {
-    clearanceMm: { leftMm: number; rightMm: number; topMm: number; backMm: number };
+    clearanceMm: { leftMm: number; rightMm: number; topMm: number; backMm: number; bottomMm: number };
     removeDoorAtApplianceZone: boolean;
     hasBaseUnderneath: boolean;
+    aboveAppliance: "door" | "drawer" | "shelf" | "empty";
+    shelfCountAbove?: number;
+    applianceLabel: string;
+    finalWidthMm: number;
+    finalDepthMm: number;
+    finalHeightMm: number;
   }) => {
     if (!applianceWizard) return;
     const state = useProjectStore.getState();
     state.updateUnitDetails(applianceWizard.unitId, {
+      label: config.applianceLabel,
+      dimensions: {
+        widthMm: config.finalWidthMm,
+        depthMm: config.finalDepthMm,
+        heightMm: config.finalHeightMm,
+      },
       applianceHousingConfig: {
-        applianceId: `app_${Date.now()}`, // مؤقت لحين ربط الأجهزة الفعلية
-        ...config,
+        applianceId: `app_${Date.now()}`,
+        clearanceMm: { leftMm: config.clearanceMm.leftMm, rightMm: config.clearanceMm.rightMm, topMm: config.clearanceMm.topMm, backMm: config.clearanceMm.backMm },
+        removeDoorAtApplianceZone: config.removeDoorAtApplianceZone,
+        hasBaseUnderneath: config.hasBaseUnderneath,
+        aboveAppliance: config.aboveAppliance,
+        shelfCountAbove: config.shelfCountAbove,
       },
     });
     setApplianceWizard(null);
   }, [applianceWizard]);
+
+  // Watch for pending housing wizard trigger from sidebar
+  const pendingHousingWizard = useProjectStore(s => s.pendingHousingWizard);
+  const setPendingHousingWizard = useProjectStore(s => s.setPendingHousingWizard);
+  useEffect(() => {
+    if (pendingHousingWizard) {
+      setApplianceWizard(pendingHousingWizard);
+      setPendingHousingWizard(null);
+    }
+  }, [pendingHousingWizard, setPendingHousingWizard]);
 
   // ---------- EARLY RETURN AFTER ALL HOOKS ----------
 
@@ -1151,7 +1177,7 @@ export const KitchenCanvas = () => {
       {/* 🏗️ Appliance Housing Wizard */}
       {applianceWizard && (
         <ApplianceHousingWizard
-          applianceName="الجهاز المحدد"
+          housingType={applianceWizard.housingType}
           onConfirm={handleApplianceHousingConfirm}
           onCancel={() => setApplianceWizard(null)}
         />

@@ -7,7 +7,7 @@ import { RoomSetupWizard } from "@/components/RoomSetupWizard";
 import { useProjectStore } from "@/store/projectStore";
 import { getProjectById } from "@/lib/firebase/projects";
 import { motion, AnimatePresence } from "framer-motion";
-import { Map, Ruler, Settings2, Calculator, PaintBucket, Share2, Bookmark } from "lucide-react";
+import { Map, Ruler, Settings2, Calculator, PaintBucket, Share2, Bookmark, MessageCircle } from "lucide-react";
 import { PricingDashboard } from "@/components/PricingDashboard";
 import { ProjectSettingsModal } from "@/components/ProjectSettingsModal";
 import { ProductionModal } from "@/components/ProductionModal";
@@ -64,12 +64,10 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
   const handleShare = async () => {
     setIsSharingLink(true);
     try {
-      // تحقق أولاً لو المشروع عنده shareToken محفوظ
       const currentProject = await getProjectById(params.id);
       let token = currentProject?.shareToken;
 
       if (!token) {
-        // ولّد token جديد عشوائي وآمن واحفظه على Firestore
         const { nanoid } = await import('nanoid');
         token = nanoid(16);
         const { updateProject } = await import("@/lib/firebase/projects");
@@ -84,6 +82,35 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
       alert('حدث خطأ أثناء إنشاء رابط المشاركة.');
     } finally {
       setIsSharingLink(false);
+    }
+  };
+
+  const handleWhatsAppShare = async () => {
+    try {
+      const currentProject = await getProjectById(params.id);
+      let token = currentProject?.shareToken;
+
+      if (!token) {
+        const { nanoid } = await import('nanoid');
+        token = nanoid(16);
+        const { updateProject } = await import("@/lib/firebase/projects");
+        await updateProject(params.id, { shareToken: token });
+      }
+
+      const url = `${window.location.origin}/share/${token}`;
+      const projectName = currentProject?.projectName || 'تصميم مطبخ';
+      const clientName = currentProject?.clientName || '';
+      const text = encodeURIComponent(
+        `مرحباً ${clientName}،\n` +
+        `تم إعداد تصميم مطبخك "${projectName}".\n\n` +
+        `يمكنك الاطلاع على التصميم 3D التفاعلي من الرابط التالي:\n${url}\n\n` +
+        `يمكنك تقليب التصميم من جميع الزوايا وفتح/إغلاق الأبواب لرؤية التقسيمة الداخلية.\n` +
+        `كذلك يمكنك تجربة معاينة AR لرؤية المطبخ في مكانك الحقيقي.\n\n` +
+        `في حالة وجود أي ملاحظات، يمكنك استخدام زر "طلب تعديل" في صفحة التصميم.`
+      );
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+    } catch (error) {
+      console.error('WhatsApp share error:', error);
     }
   };
 
@@ -212,7 +239,15 @@ export default function ProjectWorkspace({ params }: { params: { id: string } })
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold transition-all ${isSharingLink ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-blue-500 hover:bg-blue-400 text-zinc-950 shadow-[0_0_20px_rgba(59,130,246,0.3)]'}`}
             >
               <Share2 size={18} />
-              {isSharingLink ? 'جاري إنشاء الرابط...' : 'مشاركة للعميل'}
+              {isSharingLink ? 'جاري إنشاء الرابط...' : 'نسخ الرابط'}
+            </button>
+
+            <button
+              onClick={handleWhatsAppShare}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all"
+            >
+              <MessageCircle size={18} />
+              مشاركة واتساب
             </button>
 
             <button 

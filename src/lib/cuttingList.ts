@@ -753,7 +753,14 @@ function unitTypeLabelAr(type: UnitType): string {
     island: "جزيرة",
     drawer_unit: "أدراج",
     loft: "قلاب",
+    corner_loft: "ركن قلاب",
     pantry_pullout: "مخزن سحب",
+    base_appliance_housing: "هوسنج جهاز سفلي",
+    tall_appliance_housing: "هوسنج جهاز طولي",
+    range_hood_hermy: "شفاط هرمي",
+    range_hood_island: "شفاط جزيرة",
+    range_hood_curved: "شفاط كيرف",
+    range_hood_wall: "شفاط معلق",
     open_shelf: "رف مفتوح",
   };
   return unitTypeLabels[type];
