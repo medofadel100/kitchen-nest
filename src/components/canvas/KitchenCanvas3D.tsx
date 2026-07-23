@@ -331,8 +331,10 @@ export const KitchenCanvas3D = ({
 
           const isFridge = unit.label?.includes('ثلاجة') || unit.label?.toLowerCase().includes('fridge');
           const isFreezer = unit.label?.includes('فريزر') || unit.label?.toLowerCase().includes('freezer');
-          const isOven = (unit.label?.includes('فرن') && !unit.label?.includes('بوتاجاز') && !unit.label?.includes('فرن كهربائي')) || unit.label?.toLowerCase().includes('oven');
-          const isStove = unit.label?.includes('بوتاجاز') || unit.label?.toLowerCase().includes('stove') || unit.label?.toLowerCase().includes('hob');
+          const isOven = (unit.label?.includes('فرن') && !unit.label?.includes('فرن كهربائي')) || unit.label?.toLowerCase().includes('oven');
+          const isStoveFull = unit.label?.includes('بوتاجاز كامل') || unit.label?.toLowerCase().includes('stove_full');
+          const isStoveBuiltin = unit.label?.includes('بوتاجاز بلت ان') || unit.label?.toLowerCase().includes('stove_builtin');
+          const isStove = isStoveFull || isStoveBuiltin;
           const isDishwasher = unit.label?.includes('غسالة أطباق') || unit.label?.toLowerCase().includes('dishwasher');
           const isWashingMachine = unit.label?.includes('غسالة ملابس') || unit.label?.toLowerCase().includes('washing_machine');
           const isDryer = unit.label?.includes('مجفف') || unit.label?.toLowerCase().includes('dryer');
@@ -394,41 +396,88 @@ export const KitchenCanvas3D = ({
                 <Appliance3D type="microwave" width={w} height={h} depth={d} />
               ) : isOven ? (
                 <Appliance3D type="oven" width={w} height={h} depth={d} variant={applianceVariant} />
-              ) : isStove ? (
+              ) : isStoveBuiltin ? (
                 <group>
-                  {/* Stove = base unit carcass + cooktop on counter */}
-                  {/* Left Side Panel */}
+                  {/* Built-in cooktop - thin surface only (placed on counter) */}
+                  <Box args={[w * 0.85, 0.006, d * 0.75]} position={[0, 0, 0]} castShadow>
+                    <meshStandardMaterial color="#0f172a" metalness={0.85} roughness={0.1} />
+                  </Box>
+                  {[
+                    { x: -w * 0.22, z: -d * 0.2, r: 0.065 },
+                    { x: w * 0.22, z: -d * 0.2, r: 0.085 },
+                    { x: -w * 0.22, z: d * 0.2, r: 0.085 },
+                    { x: w * 0.22, z: d * 0.2, r: 0.065 },
+                  ].map((burner, i) => (
+                    <group key={`builtin-burner-${i}`} position={[burner.x, 0.004, burner.z]}>
+                      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                        <torusGeometry args={[burner.r, 0.006, 8, 32]} />
+                        <meshStandardMaterial color="#222" metalness={0.9} roughness={0.1} />
+                      </mesh>
+                      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+                        <torusGeometry args={[burner.r * 0.5, 0.004, 8, 24]} />
+                        <meshStandardMaterial color="#333" metalness={0.85} roughness={0.15} />
+                      </mesh>
+                    </group>
+                  ))}
+                  {[-0.15, -0.05, 0.05, 0.15].map((xPos, i) => (
+                    <mesh key={`builtin-knob-${i}`} position={[xPos, -0.003, d * 0.42]}>
+                      <cylinderGeometry args={[0.012, 0.012, 0.015, 12]} />
+                      <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.1} />
+                    </mesh>
+                  ))}
+                </group>
+              ) : isStoveFull ? (
+                <group>
+                  {/* Full stove = base unit carcass + oven door + cooktop on counter */}
                   <Box args={[0.018, h, d]} position={[-w/2 + 0.009, 0, 0]} castShadow receiveShadow>
                     <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} />
                   </Box>
-                  {/* Right Side Panel */}
                   <Box args={[0.018, h, d]} position={[w/2 - 0.009, 0, 0]} castShadow receiveShadow>
                     <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} />
                   </Box>
-                  {/* Back Panel */}
                   <Box args={[w - 0.036, h - 0.036, 0.018]} position={[0, 0, -d/2 + 0.009]} castShadow receiveShadow>
                     <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} />
                   </Box>
-                  {/* Bottom Panel */}
                   <Box args={[w - 0.036, 0.018, d - 0.018]} position={[0, -h/2 + 0.009, 0.009]} castShadow receiveShadow>
                     <meshStandardMaterial color={isSelected ? '#f59e0b' : color} roughness={0.35} metalness={0.02} />
                   </Box>
+                  {/* Oven door */}
+                  <Box args={[w - 0.02, h * 0.55, 0.018]} position={[0, -h * 0.1, d/2 + 0.009]} castShadow>
+                    <meshStandardMaterial color="#1a1a1a" metalness={0.5} roughness={0.3} />
+                  </Box>
+                  {/* Oven glass */}
+                  <Box args={[w * 0.6, h * 0.3, 0.005]} position={[0, -h * 0.1, d/2 + 0.02]}>
+                    <meshStandardMaterial color="#222" metalness={0.3} roughness={0.1} transparent opacity={0.6} />
+                  </Box>
+                  {/* Oven handle */}
+                  <Box args={[w * 0.5, 0.012, 0.015]} position={[0, h * 0.12, d/2 + 0.025]} castShadow>
+                    <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.1} />
+                  </Box>
+                  {/* Control panel */}
+                  <Box args={[w - 0.02, 0.04, 0.01]} position={[0, h/2 - 0.05, d/2 + 0.005]}>
+                    <meshStandardMaterial color="#111" metalness={0.6} roughness={0.3} />
+                  </Box>
+                  {[-0.1, 0.1].map((xPos, i) => (
+                    <mesh key={`stovefull-knob-${i}`} position={[xPos, h/2 - 0.05, d/2 + 0.015]}>
+                      <sphereGeometry args={[0.015, 12, 12]} />
+                      <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.1} />
+                    </mesh>
+                  ))}
                   {/* Countertop */}
                   <Box args={[w + 0.02, 0.04, d + 0.02]} position={[0, h/2 + 0.02, 0.01]} castShadow>
                     <meshStandardMaterial color="#f8fafc" roughness={0.1} />
                   </Box>
-                  {/* Cooktop surface on counter */}
+                  {/* Cooktop */}
                   <Box args={[w * 0.85, 0.015, d * 0.7]} position={[0, h/2 + 0.048, 0]} castShadow>
                     <meshStandardMaterial color="#0f172a" metalness={0.8} roughness={0.2} />
                   </Box>
-                  {/* 4 Burners (Torus rings) */}
                   {[
                     { x: -w * 0.22, z: -d * 0.18, r: 0.07 },
                     { x: w * 0.22, z: -d * 0.18, r: 0.09 },
                     { x: -w * 0.22, z: d * 0.18, r: 0.09 },
                     { x: w * 0.22, z: d * 0.18, r: 0.07 },
                   ].map((burner, i) => (
-                    <group key={`stove-burner-${i}`} position={[burner.x, h/2 + 0.055, burner.z]}>
+                    <group key={`stovefull-burner-${i}`} position={[burner.x, h/2 + 0.055, burner.z]}>
                       <mesh rotation={[-Math.PI / 2, 0, 0]}>
                         <torusGeometry args={[burner.r, 0.008, 8, 32]} />
                         <meshStandardMaterial color="#333" metalness={0.85} roughness={0.15} />
@@ -438,13 +487,6 @@ export const KitchenCanvas3D = ({
                         <meshStandardMaterial color="#444" metalness={0.8} roughness={0.2} />
                       </mesh>
                     </group>
-                  ))}
-                  {/* Control knobs on front edge of cooktop */}
-                  {[-0.15, -0.05, 0.05, 0.15].map((xPos, i) => (
-                    <mesh key={`stove-knob-${i}`} position={[xPos, h/2 + 0.03, d/2 + 0.025]}>
-                      <sphereGeometry args={[0.016, 12, 12]} />
-                      <meshStandardMaterial color="#c0c0c0" metalness={0.9} roughness={0.1} />
-                    </mesh>
                   ))}
                 </group>
               ) : isDishwasher ? (
@@ -923,7 +965,7 @@ export const KitchenCanvas3D = ({
 
                {/* 3D Details: Doors, Drawers, Countertop */}
               {(() => {
-                if (isFridge || isOven || isFreezer || isDishwasher || isWashingMachine || isDryer || isElectricOven || isMicrowave || isSink || isRangeHood || isApplianceHousing) return null; // Skip doors/drawers/countertop for full appliances
+                if (isFridge || isOven || isFreezer || isDishwasher || isWashingMachine || isDryer || isElectricOven || isMicrowave || isSink || isRangeHood || isApplianceHousing || isStoveFull) return null; // Skip doors/drawers/countertop for full appliances
                 // Note: keep this IIFE stable; any bracket mismatch breaks TS/JSX parsing.
 
 

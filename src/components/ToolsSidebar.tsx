@@ -78,7 +78,8 @@ export const ToolsSidebar = () => {
     { type: 'freezer', label: 'فريزر', icon: Snowflake, color: 'text-blue-400', bgColor: 'from-blue-900/50 to-blue-950/50', category: 'appliance' },
     { type: 'oven', label: 'فرن', icon: Flame, color: 'text-orange-400', bgColor: 'from-orange-900/50 to-orange-950/50', category: 'appliance' },
     { type: 'electric_oven', label: 'فرن كهربائي', icon: Flame, color: 'text-amber-400', bgColor: 'from-amber-900/50 to-amber-950/50', category: 'appliance' },
-    { type: 'stove', label: 'بوتاجاز', icon: ChefHat, color: 'text-red-400', bgColor: 'from-red-900/50 to-red-950/50', category: 'appliance' },
+    { type: 'stove_builtin', label: 'بوتاجاز بلت ان', icon: ChefHat, color: 'text-red-400', bgColor: 'from-red-900/50 to-red-950/50', category: 'appliance' },
+    { type: 'stove_full', label: 'بوتاجاز كامل', icon: ChefHat, color: 'text-rose-400', bgColor: 'from-rose-900/50 to-rose-950/50', category: 'appliance' },
     { type: 'microwave', label: 'مكرويف', icon: Package, color: 'text-yellow-300', bgColor: 'from-yellow-900/50 to-yellow-950/50', category: 'appliance' },
     { type: 'dishwasher', label: 'غسالة أطباق', icon: Utensils, color: 'text-teal-400', bgColor: 'from-teal-900/50 to-teal-950/50', category: 'appliance' },
     { type: 'sink', label: 'حوض', icon: Package, color: 'text-emerald-400', bgColor: 'from-emerald-900/50 to-emerald-950/50', category: 'appliance' },
@@ -155,17 +156,20 @@ export const ToolsSidebar = () => {
     let defaultX = baseX;
     let defaultY = baseY;
 
-    let widthMm = 600, depthMm = 600, heightMm = 850;
-    switch(tool.type) {
-      case 'fridge': widthMm = 700; depthMm = 700; heightMm = 1800; break;
-      case 'freezer': widthMm = 600; depthMm = 600; heightMm = 1800; break;
-      case 'oven': widthMm = 600; depthMm = 600; heightMm = 900; break;
-      case 'stove': widthMm = 600; depthMm = 600; heightMm = 900; break;
-      case 'dishwasher': widthMm = 600; depthMm = 600; heightMm = 850; break;
-      case 'washing_machine': widthMm = 600; depthMm = 600; heightMm = 850; break;
-      case 'dryer': widthMm = 600; depthMm = 600; heightMm = 850; break;
-      case 'sink': widthMm = 700; depthMm = 600; heightMm = 850; break;
-    }
+  let widthMm = 600, depthMm = 600, heightMm = 850;
+  switch(tool.type) {
+    case 'fridge': widthMm = 600; depthMm = 600; heightMm = 1700; break;
+    case 'freezer': widthMm = 600; depthMm = 600; heightMm = 1700; break;
+    case 'oven': widthMm = 600; depthMm = 600; heightMm = 900; break;
+    case 'electric_oven': widthMm = 600; depthMm = 600; heightMm = 900; break;
+    case 'stove_builtin': widthMm = 600; depthMm = 520; heightMm = 60; break;
+    case 'stove_full': widthMm = 600; depthMm = 600; heightMm = 900; break;
+    case 'microwave': widthMm = 500; depthMm = 400; heightMm = 300; break;
+    case 'dishwasher': widthMm = 600; depthMm = 600; heightMm = 850; break;
+    case 'washing_machine': widthMm = 600; depthMm = 600; heightMm = 850; break;
+    case 'dryer': widthMm = 600; depthMm = 600; heightMm = 850; break;
+    case 'sink': widthMm = 800; depthMm = 500; heightMm = 200; break;
+  }
 
     if (room) {
       const newUnit = {

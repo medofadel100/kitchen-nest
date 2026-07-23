@@ -2,14 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { useProjectStore } from '@/store/projectStore';
 
 const KNOWN_APPLIANCES = [
-  { id: 'fridge', label: 'ثلاجة', defaultW: 700, defaultD: 700, defaultH: 1800 },
-  { id: 'freezer', label: 'فريزر', defaultW: 600, defaultD: 600, defaultH: 1800 },
+  { id: 'fridge', label: 'ثلاجة', defaultW: 600, defaultD: 600, defaultH: 1700 },
+  { id: 'freezer', label: 'فريزر', defaultW: 600, defaultD: 600, defaultH: 1700 },
   { id: 'washing_machine', label: 'غسالة ملابس', defaultW: 600, defaultD: 600, defaultH: 850 },
   { id: 'dishwasher', label: 'غسالة أطباق', defaultW: 600, defaultD: 600, defaultH: 850 },
   { id: 'dryer', label: 'مجفف', defaultW: 600, defaultD: 600, defaultH: 850 },
   { id: 'oven', label: 'فرن', defaultW: 600, defaultD: 600, defaultH: 900 },
   { id: 'electric_oven', label: 'فرن كهربائي', defaultW: 600, defaultD: 600, defaultH: 900 },
-  { id: 'microwave', label: 'مكرويف', defaultW: 500, defaultD: 400, defaultH: 350 },
+  { id: 'microwave', label: 'مكرويف', defaultW: 500, defaultD: 400, defaultH: 300 },
+  { id: 'stove_full', label: 'بوتاجاز كامل', defaultW: 600, defaultD: 600, defaultH: 900 },
   { id: 'custom', label: 'جهاز مخصص (أدخل المقاسات يدوياً)', defaultW: 600, defaultD: 600, defaultH: 850 },
 ];
 

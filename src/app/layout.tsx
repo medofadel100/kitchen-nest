@@ -14,12 +14,15 @@ export const metadata = {
   title: "KitchenNest",
   description: "نظام تصميم وتسعير المطابخ",
   manifest: "/manifest.json",
-  themeColor: "#10b981",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "KitchenNest",
   },
+};
+
+export const viewport = {
+  themeColor: "#10b981",
 };
 
 export default function RootLayout({
@@ -31,7 +34,6 @@ export default function RootLayout({
     <html lang="ar" dir="rtl">
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#10b981" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
